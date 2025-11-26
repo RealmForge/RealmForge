@@ -2,6 +2,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
+using RealmForge.Planet.Generation.Noise.Components;
 
 [BurstCompile]
 public partial struct NoiseGenerationSystem : ISystem
@@ -9,7 +10,7 @@ public partial struct NoiseGenerationSystem : ISystem
     
     // 노이즈 생성 요청이 들어온 엔티티만 처리해야 하므로,
     // NativeArray를 Job이 완료된 후 처리할 NativeList로 캐시할 필드를 추가합니다.
-    private NativeList<PerlinJobResult> m_PerlinJobResults;
+    public static NativeList<PerlinJobResult> m_PerlinJobResults;
     
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -123,9 +124,13 @@ public partial struct NoiseGenerationSystem : ISystem
 }
 
 // JobHandle, NativeArray, Entity를 묶어 Job 완료 후 처리를 위한 정보를 담는 구조체
-public struct PerlinJobResult
-{
-    public JobHandle JobHandle;
-    public Entity Entity;
-    public NativeArray<float> NoiseValues;
+namespace RealmForge.Planet.Generation.Noise.Components
+{   
+    public struct PerlinJobResult
+    {
+        public JobHandle JobHandle;
+        public Entity Entity;
+        public NativeArray<float> NoiseValues;
+    }
 }
+// NoiseDataCopySystem에서 쓰려고 namespace로 감쌌습니다
