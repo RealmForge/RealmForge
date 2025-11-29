@@ -11,7 +11,6 @@
     "com.unity.netcode": "1.9.0",
     "com.unity.physics": "1.4.3",
     "com.unity.render-pipelines.universal": "17.0.4",
-    "com.unity.services.lobby": "1.2.2",
     "com.unity.services.multiplayer": "1.1.8",
     "com.unity.test-framework": "1.6.0",
     "com.unity.timeline": "1.8.9",
