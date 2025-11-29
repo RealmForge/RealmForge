@@ -2,6 +2,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
+using UnityEngine;
 using RealmForge.Planet.Generation.Noise.Components;
 
 [BurstCompile]
@@ -51,10 +52,9 @@ public partial struct NoiseGenerationSystem : ISystem
         // 처리되지 않은 노이즈 생성 요청 처리
         foreach (var (request, noiseSettings, entity) in
             SystemAPI.Query<RefRO<NoiseGenerationRequest>, RefRO<NoiseSettings>>()
-            .WithAll<NoiseGenerationRequest>()// 작업 시작을 나타내기에 request로 바꿨습니다. (중복 작업 방지)
+//            .WithAll<NoiseGenerationRequest>()// 작업 시작을 나타내기에 request로 바꿨습니다. (중복 작업 방지)
             .WithEntityAccess())
         {
-
             int totalSize = request.ValueRO.ChunkSize * 
                             request.ValueRO.ChunkSize * 
                             request.ValueRO.ChunkSize;
@@ -76,34 +76,17 @@ public partial struct NoiseGenerationSystem : ISystem
 
             var jobHandle = job.Schedule(totalSize, 64);
             //jobHandle.Complete(); 메인스레드 블로킹 방지
-            
+
             newJobs.Add(new PerlinJobResult
             {
                 JobHandle = jobHandle,
                 Entity = entity,
                 NoiseValues = noiseValues
             });
-            
+
             // 요청 엔티티 비활성화 (중복 스케줄링 방지)
             ecb.SetComponentEnabled<NoiseGenerationRequest>(entity, false);
             
-            
-            /*
-            // Buffer에 데이터 저장
-            var buffer = state.EntityManager.GetBuffer<NoiseDataBuffer>(entity);
-            buffer.Clear();
-            buffer.Capacity = totalSize;
-
-            for (int i = 0; i < totalSize; i++)
-            {
-                buffer.Add(new NoiseDataBuffer { Value = noiseValues[i] });
-            }
-
-            noiseValues.Dispose();
-
-            // 처리 완료 표시
-            ecb.SetComponentEnabled<NoiseGenerationRequest>(entity, false);
-            */
             
             // 렌더링 완료 표시
             //ecb.SetComponentEnabled<NoiseVisualizationReady>(entity, true);
@@ -112,9 +95,20 @@ public partial struct NoiseGenerationSystem : ISystem
         // 종속성 연결 및 캐시 업데이트
         if (newJobs.Length > 0)
         {
-            JobHandle combinedHandle = JobHandle.CombineDependencies(newJobs.AsArray().Reinterpret<JobHandle>());
+            // JobHandle combinedHandle = JobHandle.CombineDependencies(newJobs.AsArray().Reinterpret<JobHandle>());
+            
+            // PerlinJobResult에서 JobHandle만 추출
+            var jobHandles = new NativeArray<JobHandle>(newJobs.Length, Allocator.Temp);
+            for (int i = 0; i < newJobs.Length; i++)
+            {
+                jobHandles[i] = newJobs[i].JobHandle;
+            }
+
+            JobHandle combinedHandle = JobHandle.CombineDependencies(jobHandles);
             state.Dependency = combinedHandle;
             m_PerlinJobResults.AddRange(newJobs);
+
+            jobHandles.Dispose();
         }
 
         ecb.Playback(state.EntityManager);
