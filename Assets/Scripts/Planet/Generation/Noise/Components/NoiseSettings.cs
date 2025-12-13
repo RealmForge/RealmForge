@@ -11,10 +11,12 @@ public struct NoiseSettings : IComponentData
     public int Seed;
 }
 
-public struct NoiseGenerationRequest : IComponentData, IEnableableComponent
-{
-    public int3 ChunkPosition;
-    public int ChunkSize;
-}
+/// <summary>
+/// 노이즈 생성 요청 플래그 (활성화 시 생성 시작)
+/// </summary>
+public struct NoiseGenerationRequest : IComponentData, IEnableableComponent {}
 
+/// <summary>
+/// 노이즈 시각화 준비 완료 플래그
+/// </summary>
 public struct NoiseVisualizationReady : IComponentData, IEnableableComponent {}

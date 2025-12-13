@@ -1,15 +1,14 @@
-using UnityEngine;
+using Unity.Entities;
+using Unity.Mathematics;
 
-public class ChunkData : MonoBehaviour
+namespace RealmForge.Planet.Chunk.Components
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    /// <summary>
+    /// 청크의 기본 정보를 담는 컴포넌트
+    /// </summary>
+    public struct ChunkData : IComponentData
     {
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
+        public int3 ChunkPosition;  // 청크 그리드 내 위치
+        public int ChunkSize;       // 청크 한 변의 크기
     }
 }
