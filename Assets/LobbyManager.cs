@@ -20,6 +20,7 @@ public class LobbyManager : MonoBehaviour
     [SerializeField] private Button reconnectButton;
     [SerializeField] private Text playerNameText;
     [SerializeField] private Button renameButton;
+    [SerializeField] private GameObject renamePanel;
     [SerializeField] private InputField renameInput;
 
     [Header("CREATE Tab UI")]
@@ -30,6 +31,9 @@ public class LobbyManager : MonoBehaviour
     [Header("Settings")]
     [SerializeField] private int maxPlayersPerLobby = 4;
     [SerializeField] private float lobbyRefreshInterval = 2f;
+
+    [Header("Room Manager")]
+    [SerializeField] private RoomManager roomManager;
 
     private string _playerName = "Player";
     private Lobby _currentLobby;
@@ -100,9 +104,9 @@ public class LobbyManager : MonoBehaviour
         // CREATE Tab
         createButton.onClick.AddListener(() => _ = CreateLobby());
 
-        // 초기에는 rename input 숨기기
-        if (renameInput != null)
-            renameInput.gameObject.SetActive(false);
+        // 초기에는 rename panel 숨기기
+        if (renamePanel != null)
+            renamePanel.SetActive(false);
     }
 
     #endregion
@@ -117,27 +121,50 @@ public class LobbyManager : MonoBehaviour
 
     private void OnRenameButtonClicked()
     {
-        if (renameInput == null) return;
+        if (renamePanel == null) return;
 
-        if (renameInput.gameObject.activeSelf)
+        if (renamePanel.activeSelf)
         {
-            // Rename input이 활성화되어 있으면 닉네임 변경
-            string newName = renameInput.text.Trim();
-            if (!string.IsNullOrEmpty(newName))
+            // Rename panel이 활성화되어 있으면 이름 변경 후 비활성화
+            if (renameInput != null)
             {
-                _playerName = newName;
-                UpdatePlayerNameDisplay();
-                Debug.Log($"Player name changed to: {_playerName}");
+                string newName = renameInput.text.Trim();
+                if (!string.IsNullOrEmpty(newName))
+                {
+                    _playerName = newName;
+                    UpdatePlayerNameDisplay();
+                    Debug.Log($"[RENAME] Player name changed to: {_playerName}");
+                }
             }
-            renameInput.gameObject.SetActive(false);
+            renamePanel.SetActive(false);
         }
         else
         {
-            // Rename input 활성화
-            renameInput.text = _playerName;
-            renameInput.gameObject.SetActive(true);
-            renameInput.ActivateInputField();
+            // Rename panel 활성화
+            if (renameInput != null)
+            {
+                renameInput.text = _playerName;
+                renameInput.ActivateInputField();
+            }
+            renamePanel.SetActive(true);
         }
+    }
+
+    public void ApplyRename()
+    {
+        // Rename panel 내부의 확인 버튼에 연결할 함수
+        if (renameInput == null) return;
+
+        string newName = renameInput.text.Trim();
+        if (!string.IsNullOrEmpty(newName))
+        {
+            _playerName = newName;
+            UpdatePlayerNameDisplay();
+            Debug.Log($"Player name changed to: {_playerName}");
+        }
+
+        if (renamePanel != null)
+            renamePanel.SetActive(false);
     }
 
     #endregion
@@ -258,9 +285,9 @@ public class LobbyManager : MonoBehaviour
 
             _currentLobby = await LobbyService.Instance.CreateLobbyAsync(lobbyName, maxPlayersPerLobby, options);
 
-            Debug.Log($"[SUCCESS] Created lobby: {_currentLobby.Name} (ID: {_currentLobby.Id})");
-            Debug.Log($"[SUCCESS] Lobby Code: {_currentLobby.LobbyCode}");
-            Debug.Log($"[SUCCESS] IsPrivate: {_currentLobby.IsPrivate}");
+            Debug.Log($"[CREATE] Created lobby: {_currentLobby.Name} (ID: {_currentLobby.Id})");
+            Debug.Log($"[CREATE] Lobby Code: {_currentLobby.LobbyCode}");
+            Debug.Log($"[CREATE] IsPrivate: {_currentLobby.IsPrivate}");
 
             // 생성 후 입력 필드 초기화
             createLobbyNameInput.text = "";
@@ -269,8 +296,15 @@ public class LobbyManager : MonoBehaviour
             // 로비 하트비트 시작 (로비가 자동으로 제거되지 않도록)
             InvokeRepeating(nameof(SendLobbyHeartbeat), 15f, 15f);
 
-            // 로비 목록 즉시 갱신
-            await RefreshLobbyList();
+            // RoomManager로 방 입장
+            if (roomManager != null)
+            {
+                roomManager.EnterRoom(_currentLobby);
+            }
+            else
+            {
+                Debug.LogError("[CREATE] RoomManager is not assigned!");
+            }
         }
         catch (Exception e)
         {
@@ -356,12 +390,22 @@ public class LobbyManager : MonoBehaviour
 
             _currentLobby = await LobbyService.Instance.JoinLobbyByIdAsync(lobbyId, options);
 
-            Debug.Log($"Joined lobby: {_currentLobby.Name} (ID: {_currentLobby.Id})");
-            Debug.Log($"Players in lobby: {_currentLobby.Players.Count}/{_currentLobby.MaxPlayers}");
+            Debug.Log($"[JOIN] Joined lobby: {_currentLobby.Name} (ID: {_currentLobby.Id})");
+            Debug.Log($"[JOIN] Players in lobby: {_currentLobby.Players.Count}/{_currentLobby.MaxPlayers}");
 
             // 입력 필드 초기화
             joinLobbyNameInput.text = "";
             joinLobbyPasswordInput.text = "";
+
+            // RoomManager로 방 입장
+            if (roomManager != null)
+            {
+                roomManager.EnterRoom(_currentLobby);
+            }
+            else
+            {
+                Debug.LogError("[JOIN] RoomManager is not assigned!");
+            }
         }
         catch (Exception e)
         {
@@ -386,8 +430,18 @@ public class LobbyManager : MonoBehaviour
 
             _currentLobby = await LobbyService.Instance.QuickJoinLobbyAsync(options);
 
-            Debug.Log($"Quick joined lobby: {_currentLobby.Name} (ID: {_currentLobby.Id})");
-            Debug.Log($"Players in lobby: {_currentLobby.Players.Count}/{_currentLobby.MaxPlayers}");
+            Debug.Log($"[QUICKJOIN] Quick joined lobby: {_currentLobby.Name} (ID: {_currentLobby.Id})");
+            Debug.Log($"[QUICKJOIN] Players in lobby: {_currentLobby.Players.Count}/{_currentLobby.MaxPlayers}");
+
+            // RoomManager로 방 입장
+            if (roomManager != null)
+            {
+                roomManager.EnterRoom(_currentLobby);
+            }
+            else
+            {
+                Debug.LogError("[QUICKJOIN] RoomManager is not assigned!");
+            }
         }
         catch (Exception e)
         {
