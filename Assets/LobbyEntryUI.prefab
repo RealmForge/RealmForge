@@ -401,6 +401,7 @@ MonoBehaviour:
   lobbyNameText: {fileID: 2488548746136235550}
   playerCountText: {fileID: 7951472762380311035}
   joinButton: {fileID: 5328995522152326385}
+  joinText: {fileID: 3921316247280157163}
 --- !u!225 &9095203534421824993
 CanvasGroup:
   m_ObjectHideFlags: 0

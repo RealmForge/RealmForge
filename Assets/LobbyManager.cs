@@ -377,6 +377,20 @@ public class LobbyManager : MonoBehaviour
     {
         try
         {
+            // 먼저 로비 정보를 조회하여 비밀번호 확인
+            Lobby targetLobby = await LobbyService.Instance.GetLobbyAsync(lobbyId);
+
+            // 비밀번호 확인
+            if (targetLobby.Data != null && targetLobby.Data.ContainsKey("Password"))
+            {
+                string lobbyPassword = targetLobby.Data["Password"].Value;
+                if (string.IsNullOrEmpty(password) || lobbyPassword != password)
+                {
+                    Debug.LogWarning("[JOIN] 비밀번호가 필요한 방입니다!");
+                    return;
+                }
+            }
+
             JoinLobbyByIdOptions options = new JoinLobbyByIdOptions
             {
                 Player = new Player

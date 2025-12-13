@@ -7,6 +7,7 @@ public class LobbyListCell : MonoBehaviour
     [SerializeField] private Text lobbyNameText;
     [SerializeField] private Text playerCountText;
     [SerializeField] private Button joinButton;
+    [SerializeField] private Text joinText;
 
     private Lobby _lobbyInfo;
 
@@ -19,7 +20,22 @@ public class LobbyListCell : MonoBehaviour
         joinButton.onClick.RemoveAllListeners();
         joinButton.onClick.AddListener(() => onJoinClick?.Invoke(lobby));
 
+        // 비밀번호가 걸려있는 방은 Join 버튼 비활성화 및 텍스트 변경
+        if (lobby.HasPassword)
+        {
+            joinButton.interactable = false;
+            joinText.text = "Lock";
+        }
         // 방이 꽉 찼으면 Join 버튼 비활성화
-        joinButton.interactable = lobby.Players.Count < lobby.MaxPlayers;
+        else if (lobby.Players.Count >= lobby.MaxPlayers)
+        {
+            joinButton.interactable = false;
+            joinText.text = "Full";
+        }
+        else
+        {
+            joinButton.interactable = true;
+            joinText.text = "Join";
+        }
     }
 }

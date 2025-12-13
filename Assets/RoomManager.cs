@@ -7,7 +7,6 @@ using UnityEngine.SceneManagement;
 using Unity.Services.Authentication;
 using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
-using Unity.Netcode;
 
 public class RoomManager : MonoBehaviour
 {
@@ -30,8 +29,6 @@ public class RoomManager : MonoBehaviour
 
     [Header("Settings")]
     [SerializeField] private float lobbyPollInterval = 1.5f;
-    [SerializeField] private string gameSceneName = "Game";
-    [SerializeField] private int maxPlayers = 4;
 
     private Lobby _currentLobby;
     private bool _isReady = false;
@@ -231,35 +228,6 @@ public class RoomManager : MonoBehaviour
 
         Debug.Log("[ROOM] Starting game...");
 
-        try
-        {
-            // Relay 생성 및 Join Code 획득
-            string joinCode = await RelayManager.Instance.CreateRelayAsHost(maxPlayers);
-
-            // Lobby 데이터에 Join Code 저장
-            UpdateLobbyOptions options = new UpdateLobbyOptions
-            {
-                Data = new Dictionary<string, DataObject>
-                {
-                    { "RelayJoinCode", new DataObject(DataObject.VisibilityOptions.Member, joinCode) }
-                }
-            };
-
-            await LobbyService.Instance.UpdateLobbyAsync(_currentLobby.Id, options);
-
-            Debug.Log($"[ROOM] Relay created and join code stored: {joinCode}");
-
-            // Host로 네트워크 시작
-            NetworkManager.Singleton.StartHost();
-
-            // 씬 전환
-            _isInRoom = false;
-            SceneManager.LoadScene(gameSceneName);
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"[ROOM] Failed to start game: {e.Message}");
-        }
     }
 
     private async void OnExitButtonClicked()
@@ -273,29 +241,7 @@ public class RoomManager : MonoBehaviour
 
     private async Task JoinGame(string joinCode)
     {
-        // 중복 참가 방지
-        if (!_isInRoom) return;
-
-        _isInRoom = false;
-
-        try
-        {
-            // Relay에 연결
-            await RelayManager.Instance.JoinRelayAsClient(joinCode);
-
-            // Client로 네트워크 시작
-            NetworkManager.Singleton.StartClient();
-
-            // 씬 전환
-            SceneManager.LoadScene(gameSceneName);
-
-            Debug.Log($"[ROOM] Joined game with relay code: {joinCode}");
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"[ROOM] Failed to join game: {e.Message}");
-            _isInRoom = true;
-        }
+       
     }
 
     #endregion
