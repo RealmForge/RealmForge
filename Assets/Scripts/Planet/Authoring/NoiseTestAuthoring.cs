@@ -1,7 +1,6 @@
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
-using RealmForge.Planet.Chunk.Components;
 
 public class NoiseTestAuthoring : MonoBehaviour
 {

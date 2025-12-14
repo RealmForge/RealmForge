@@ -8,26 +8,27 @@ using RealmForge.Planet.Generation.Noise.Components;
 
 [UpdateAfter(typeof(NoiseGenerationSystem))]
 [BurstCompile]
-public partial  struct NoiseDataCopySystem : ISystem
+public partial struct NoiseDataCopySystem : ISystem
 {
-    // 💡 참고: 실제로는 NoiseGenerationSystem의 NativeList 필드에 접근하는 별도의 방법이 필요함
-    // 여기서는 편의상 m_PerlinJobResults를 static/global하게 접근 가능하다고 가정합니다.
-    
+    // NoiseGenerationSystem의 static 삭제를 위한 Handle
+    private SystemHandle m_NoiseGenerationSystemHandle;
+
+    public void OnCreate(ref SystemState state)
+    {
+        m_NoiseGenerationSystemHandle = state.WorldUnmanaged.GetExistingSystemState<NoiseGenerationSystem>().SystemHandle;
+    }
+
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        // ❌ 실제 코드로 컴파일하려면 m_PerlinJobResults 접근 방식을 변경해야 함
-        // 예시를 위해 m_PerlinJobResults가 static으로 접근 가능하다고 가정
-        
-        // 현재는 로직 흐름 설명을 위해 코드 생략
+        ref var noiseGenSystem = ref state.WorldUnmanaged.GetUnsafeSystemRef<NoiseGenerationSystem>(m_NoiseGenerationSystemHandle);
+        ref var perlinJobsList = ref noiseGenSystem.m_PerlinJobResults;
+
+        if (!perlinJobsList.IsCreated || perlinJobsList.Length == 0) return;
 
         var ecb = new EntityCommandBuffer(Allocator.TempJob);
         var entityManager = state.EntityManager;
-        
-        var perlinJobsList = NoiseGenerationSystem.m_PerlinJobResults;
-        if (!NoiseGenerationSystem.m_PerlinJobResults.IsCreated || NoiseGenerationSystem.m_PerlinJobResults.Length == 0) return;
 
-        // 💡 주의: 이 코드는 NoiseGenerationSystem의 m_PerlinJobResults에 대한 참조를 직접 가져와야 작동합니다.
         // 역순으로 순회하며 처리 후 제거 (안전성 확보)
         
         for (int i = perlinJobsList.Length - 1; i >= 0; i--)

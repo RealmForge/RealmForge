@@ -1,6 +1,5 @@
 using Unity.Entities;
 using UnityEngine;
-using RealmForge.Planet.Rendering.DebugVisualization.Components;
 
 public class DebugNoiseVisualizationAuthoring : MonoBehaviour
 {

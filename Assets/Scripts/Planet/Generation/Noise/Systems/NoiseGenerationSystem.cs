@@ -3,14 +3,13 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using RealmForge.Planet.Generation.Noise.Components;
-using RealmForge.Planet.Chunk.Components;
 
 [BurstCompile]
 public partial struct NoiseGenerationSystem : ISystem
 {
     // 노이즈 생성 요청이 들어온 엔티티만 처리해야 하므로,
     // NativeArray를 Job이 완료된 후 처리할 NativeList로 캐시할 필드를 추가합니다.
-    public static NativeList<PerlinJobResult> m_PerlinJobResults;
+    public NativeList<PerlinJobResult> m_PerlinJobResults;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
