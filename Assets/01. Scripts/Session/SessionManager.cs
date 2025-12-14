@@ -1,26 +1,25 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Unity.Entities;
 using Unity.Networking.Transport.Relay;
+using Unity.Services.Lobbies.Models;
 using UnityEngine;
 
 namespace RealmForge.Session
 {
     /// <summary>
-    /// GameSession, LobbySessionAdapter, NetcodeSessionAdapter를 통합 관리
-    /// 세션 라이프사이클 전체를 조율하는 최상위 매니저
+    /// 인게임 세션을 관리하는 매니저
+    /// Relay + Netcode 연결 및 플레이어 동기화 담당
+    /// Lobby/Room 단계는 LobbyManager/RoomManager가 담당
     /// </summary>
     public class SessionManager : MonoBehaviour
     {
         public static SessionManager Instance { get; private set; }
 
-        [Header("Settings")]
-        [SerializeField] private bool _autoHeartbeat = true;
-
         // Core Components
         public GameSession Session { get; private set; }
         public PlayerIdMapper IdMapper { get; private set; }
-        public LobbySessionAdapter LobbyAdapter { get; private set; }
         public NetcodeSessionAdapter NetcodeAdapter { get; private set; }
 
         // NFE Worlds
@@ -29,10 +28,13 @@ namespace RealmForge.Session
         private RelayServerData? _serverRelayData;
         private string _currentRelayJoinCode;
 
+        // Lobby reference (Room에서 전달받음)
+        private Lobby _currentLobby;
+
         // State
-        public bool IsInLobby => LobbyAdapter?.CurrentLobby != null;
         public bool IsInGame => Session?.State == SessionState.InProgress;
         public bool IsHost => Session?.IsHost ?? false;
+        public string CurrentRelayJoinCode => _currentRelayJoinCode;
 
         // Events
         public event Action<SessionState> OnSessionStateChanged;
@@ -60,24 +62,16 @@ namespace RealmForge.Session
         {
             Session = new GameSession();
             IdMapper = new PlayerIdMapper();
-            LobbyAdapter = new LobbySessionAdapter(Session, IdMapper);
             NetcodeAdapter = new NetcodeSessionAdapter(Session, IdMapper);
 
             // 이벤트 구독
             Session.OnStateChanged += HandleSessionStateChanged;
             Session.OnPlayerJoined += player => OnPlayerJoined?.Invoke(player);
             Session.OnPlayerLeft += player => OnPlayerLeft?.Invoke(player);
-
-            LobbyAdapter.OnRelayJoinCodeReceived += HandleRelayJoinCodeReceived;
         }
 
         private void Update()
         {
-            if (_autoHeartbeat)
-            {
-                LobbyAdapter?.UpdateHeartbeat(Time.deltaTime);
-            }
-
             NetcodeAdapter?.UpdateConnectionState();
         }
 
@@ -90,54 +84,70 @@ namespace RealmForge.Session
             }
         }
 
-        #region Lobby Operations
+        #region Session Initialization
 
         /// <summary>
-        /// 새 로비 생성
+        /// Room에서 게임 시작 시 호출 - Lobby 플레이어들을 Session에 등록
         /// </summary>
-        public async Task<bool> CreateLobbyAsync(string lobbyName, int maxPlayers, bool isPrivate = false)
+        public void InitializeSessionFromLobby(Lobby lobby, string localPlayerName, bool isHost)
         {
-            return await LobbyAdapter.CreateLobbyAsync(lobbyName, maxPlayers, isPrivate);
+            _currentLobby = lobby;
+
+            // SessionConfig 설정
+            var config = new SessionConfig
+            {
+                SessionName = lobby.Name,
+                MaxPlayers = lobby.MaxPlayers,
+                IsPrivate = lobby.IsPrivate,
+                GameMode = "Default",
+                CustomData = new Dictionary<string, string>()
+            };
+
+            // 로컬 플레이어 등록
+            var localAuthId = Unity.Services.Authentication.AuthenticationService.Instance.PlayerId;
+            var localPlayerId = IdMapper.RegisterFromLobby(localAuthId);
+
+            if (isHost)
+            {
+                Session.Create(config, localPlayerId, localPlayerName);
+            }
+            else
+            {
+                Session.Join(lobby.Id, localPlayerId, localPlayerName);
+            }
+
+            // Lobby의 다른 플레이어들을 Session에 등록
+            foreach (var lobbyPlayer in lobby.Players)
+            {
+                // 자기 자신은 이미 등록됨
+                if (lobbyPlayer.Id == localAuthId) continue;
+
+                var playerId = IdMapper.RegisterFromLobby(lobbyPlayer.Id);
+                var playerName = GetPlayerNameFromLobby(lobbyPlayer);
+
+                var sessionPlayer = new SessionPlayer
+                {
+                    PlayerId = playerId,
+                    DisplayName = playerName,
+                    ConnectionId = -1,
+                    State = PlayerConnectionState.Connecting,
+                    IsHost = lobbyPlayer.Id == lobby.HostId,
+                    LastHeartbeat = Time.realtimeSinceStartup
+                };
+
+                Session.AddPlayer(sessionPlayer);
+            }
+
+            Debug.Log($"[SessionManager] Session initialized with {Session.PlayerCount} players");
         }
 
-        /// <summary>
-        /// 로비 코드로 참가
-        /// </summary>
-        public async Task<bool> JoinLobbyByCodeAsync(string lobbyCode)
+        private string GetPlayerNameFromLobby(Player lobbyPlayer)
         {
-            return await LobbyAdapter.JoinLobbyByCodeAsync(lobbyCode);
-        }
-
-        /// <summary>
-        /// 로비 ID로 참가
-        /// </summary>
-        public async Task<bool> JoinLobbyByIdAsync(string lobbyId)
-        {
-            return await LobbyAdapter.JoinLobbyByIdAsync(lobbyId);
-        }
-
-        /// <summary>
-        /// 퀵 조인
-        /// </summary>
-        public async Task<bool> QuickJoinAsync()
-        {
-            return await LobbyAdapter.QuickJoinAsync();
-        }
-
-        /// <summary>
-        /// 로비 나가기
-        /// </summary>
-        public async Task LeaveLobbyAsync()
-        {
-            await LobbyAdapter.LeaveLobbyAsync();
-        }
-
-        /// <summary>
-        /// 현재 로비 코드 가져오기
-        /// </summary>
-        public string GetLobbyCode()
-        {
-            return LobbyAdapter?.CurrentLobby?.LobbyCode;
+            if (lobbyPlayer.Data != null && lobbyPlayer.Data.TryGetValue("PlayerName", out var nameData))
+            {
+                return nameData.Value;
+            }
+            return "Unknown";
         }
 
         #endregion
@@ -146,37 +156,32 @@ namespace RealmForge.Session
 
         /// <summary>
         /// 게임 시작 (호스트 전용)
-        /// 1. Lobby 잠금
-        /// 2. Relay 할당
-        /// 3. NFE 서버 월드 생성 및 Relay 설정
-        /// 4. Lobby에 Relay Join Code 공유
-        /// 5. 호스트 클라이언트 연결
+        /// 1. Relay 할당
+        /// 2. NFE 서버 월드 생성 및 Relay 설정
+        /// 3. 호스트 클라이언트 연결
+        /// 4. Relay Join Code 반환 (RoomManager가 Lobby에 공유)
         /// </summary>
-        public async Task<bool> StartGameAsHostAsync()
+        public async Task<string> StartGameAsHostAsync()
         {
             if (!IsHost)
             {
                 Debug.LogError("[SessionManager] Only host can start the game");
                 OnGameStartFailed?.Invoke("Only host can start the game");
-                return false;
+                return null;
             }
 
             if (Session.State != SessionState.Waiting)
             {
                 Debug.LogError("[SessionManager] Cannot start game in current state");
                 OnGameStartFailed?.Invoke("Invalid session state");
-                return false;
+                return null;
             }
 
             OnGameStarting?.Invoke();
 
             try
             {
-                // 1. Lobby 잠금
-                await LobbyAdapter.LockLobbyAsync();
-                Debug.Log("[SessionManager] Lobby locked");
-
-                // 2. Relay 할당 및 Join Code 획득
+                // 1. Relay 할당 및 Join Code 획득
                 var maxConnections = Session.Config.MaxPlayers - 1; // 호스트 제외
                 var relayResult = await RelayServiceHelper.AllocateRelayServerAsync(maxConnections);
 
@@ -184,48 +189,46 @@ namespace RealmForge.Session
                 {
                     Debug.LogError("[SessionManager] Failed to allocate relay");
                     OnGameStartFailed?.Invoke("Failed to allocate relay server");
-                    return false;
+                    return null;
                 }
 
                 _serverRelayData = relayResult.Value.serverData;
                 _currentRelayJoinCode = relayResult.Value.joinCode;
                 Debug.Log($"[SessionManager] Relay allocated, join code: {_currentRelayJoinCode}");
 
-                // 3. NFE 서버 월드 생성
+                // 2. NFE 서버 월드 생성
                 _serverWorld = NetcodeWorldHelper.CreateServerWorld("SessionServerWorld");
                 if (_serverWorld == null)
                 {
                     Debug.LogError("[SessionManager] Failed to create server world");
                     OnGameStartFailed?.Invoke("Failed to create server world");
-                    return false;
+                    return null;
                 }
 
-                // 4. 서버에 Relay 설정 적용
+                // 3. 서버에 Relay 설정 적용
                 if (!NetcodeWorldHelper.SetupServerWithRelay(_serverWorld, _serverRelayData.Value))
                 {
                     Debug.LogError("[SessionManager] Failed to setup server with relay");
                     OnGameStartFailed?.Invoke("Failed to setup server with relay");
                     NetcodeWorldHelper.DisposeWorld(_serverWorld);
                     _serverWorld = null;
-                    return false;
+                    return null;
                 }
 
                 NetcodeAdapter.InitializeAsServer(_serverWorld);
                 Debug.Log("[SessionManager] Server world created and listening");
 
-                // 5. Lobby에 Relay Join Code 공유
-                await LobbyAdapter.SetRelayJoinCodeAsync(_currentRelayJoinCode);
-                Debug.Log("[SessionManager] Relay join code shared to lobby");
-
-                // 6. 호스트도 클라이언트 월드 생성하여 연결
+                // 4. 호스트도 클라이언트 월드 생성하여 연결
                 await ConnectHostAsClient(_currentRelayJoinCode);
 
-                // 7. GameSession 시작
+                // 5. GameSession 시작
                 Session.StartSession();
 
                 OnGameStarted?.Invoke();
                 Debug.Log("[SessionManager] Game started successfully as host");
-                return true;
+
+                // Relay Join Code 반환 (RoomManager가 Lobby에 공유)
+                return _currentRelayJoinCode;
             }
             catch (Exception e)
             {
@@ -239,7 +242,7 @@ namespace RealmForge.Session
                     _serverWorld = null;
                 }
 
-                return false;
+                return null;
             }
         }
 
@@ -322,37 +325,16 @@ namespace RealmForge.Session
             OnSessionStateChanged?.Invoke(newState);
         }
 
-        private void HandleRelayJoinCodeReceived(string joinCode)
-        {
-            Debug.Log($"[SessionManager] Received relay join code: {joinCode}");
-
-            // 호스트가 아닌 클라이언트는 자동으로 연결
-            if (!IsHost && Session.State == SessionState.Waiting)
-            {
-                _ = ConnectToGameAsClientAsync(joinCode);
-            }
-        }
-
         #endregion
 
         #region Cleanup
 
         /// <summary>
-        /// 세션 종료 및 정리
+        /// 세션 종료 및 정리 (Lobby 정리는 RoomManager에서 처리)
         /// </summary>
-        public async Task EndSessionAsync()
+        public void EndSession()
         {
             Debug.Log("[SessionManager] Ending session...");
-
-            // Lobby 정리
-            if (IsHost)
-            {
-                await LobbyAdapter.DeleteLobbyAsync();
-            }
-            else
-            {
-                await LobbyAdapter.LeaveLobbyAsync();
-            }
 
             // GameSession 종료
             Session.EndSession();
@@ -378,6 +360,7 @@ namespace RealmForge.Session
 
             _serverRelayData = null;
             _currentRelayJoinCode = null;
+            _currentLobby = null;
 
             Debug.Log("[SessionManager] Session ended");
         }
@@ -385,9 +368,7 @@ namespace RealmForge.Session
         private void Cleanup()
         {
             Session.OnStateChanged -= HandleSessionStateChanged;
-            LobbyAdapter.OnRelayJoinCodeReceived -= HandleRelayJoinCodeReceived;
 
-            LobbyAdapter?.Dispose();
             NetcodeAdapter?.Dispose();
 
             // 월드 정리
@@ -413,15 +394,22 @@ namespace RealmForge.Session
         public void DebugSessionState()
         {
             Debug.Log($"=== Session Manager State ===");
-            Debug.Log($"IsInLobby: {IsInLobby}");
             Debug.Log($"IsInGame: {IsInGame}");
             Debug.Log($"IsHost: {IsHost}");
             Debug.Log($"Session State: {Session?.State}");
             Debug.Log($"Player Count: {Session?.PlayerCount}");
-            Debug.Log($"Lobby Code: {GetLobbyCode()}");
             Debug.Log($"Relay Join Code: {_currentRelayJoinCode}");
             Debug.Log($"Server World: {_serverWorld?.Name ?? "null"}");
             Debug.Log($"Client World: {_clientWorld?.Name ?? "null"}");
+
+            if (Session?.Players != null)
+            {
+                Debug.Log("--- Players ---");
+                foreach (var player in Session.Players)
+                {
+                    Debug.Log($"  {player.Value.DisplayName} (ID: {player.Key}, NetworkId: {player.Value.ConnectionId}, Host: {player.Value.IsHost})");
+                }
+            }
         }
 
         #endregion
