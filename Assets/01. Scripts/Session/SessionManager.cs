@@ -44,6 +44,10 @@ namespace RealmForge.Session
         public event Action OnGameStarted;
         public event Action<string> OnGameStartFailed;
 
+        // Session Data (ScriptableObject for persistence)
+        private SessionDataSO _sessionData;
+        public SessionDataSO SessionData => _sessionData;
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -55,7 +59,13 @@ namespace RealmForge.Session
             Instance = this;
             DontDestroyOnLoad(gameObject);
 
+            // Load SessionDataSO from Resources
+            _sessionData = SessionDataSO.Instance;
+
             InitializeComponents();
+
+            // 씬 전환 후 데이터 복원 시도
+            TryRestoreSessionFromData();
         }
 
         private void InitializeComponents()
@@ -327,6 +337,123 @@ namespace RealmForge.Session
 
         #endregion
 
+        #region Session Data Persistence
+
+        /// <summary>
+        /// 씬 전환 전에 세션 데이터를 ScriptableObject에 저장
+        /// 에디터에서는 동작하지 않음 (빌드 전용)
+        /// </summary>
+        public void SaveSessionToData()
+        {
+#if UNITY_EDITOR
+            Debug.Log("[SessionManager] SaveSessionToData skipped in Editor");
+            return;
+#else
+            if (_sessionData == null)
+            {
+                Debug.LogError("[SessionManager] SessionDataSO not found!");
+                return;
+            }
+
+            _sessionData.SaveSessionData(
+                relayCode: _currentRelayJoinCode,
+                lobbyId: _currentLobby?.Id,
+                sessionId: Session.SessionId,
+                isHost: IsHost,
+                localPlayerId: Session.LocalPlayerId,
+                localPlayerName: Session.GetPlayer(Session.LocalPlayerId)?.DisplayName ?? "Unknown",
+                config: Session.Config,
+                sessionPlayers: Session.Players.Values,
+                state: Session.State
+            );
+
+            Debug.Log("[SessionManager] Session data saved to ScriptableObject");
+#endif
+        }
+
+        /// <summary>
+        /// 씬 전환 후 ScriptableObject에서 세션 데이터 복원 시도
+        /// 에디터에서는 동작하지 않음 (빌드 전용)
+        /// </summary>
+        private void TryRestoreSessionFromData()
+        {
+#if UNITY_EDITOR
+            Debug.Log("[SessionManager] TryRestoreSessionFromData skipped in Editor");
+            return;
+#else
+            if (_sessionData == null || !_sessionData.HasValidData)
+            {
+                Debug.Log("[SessionManager] No session data to restore");
+                return;
+            }
+
+            // PendingRestore 플래그 체크 - 씬 전환 직후에만 복원
+            if (!_sessionData.PendingRestore)
+            {
+                Debug.Log("[SessionManager] No pending restore, skipping");
+                return;
+            }
+
+            Debug.Log("[SessionManager] Restoring session from saved data...");
+
+            // 이미 세션이 진행 중이면 복원하지 않음
+            if (Session.State != SessionState.None)
+            {
+                Debug.Log("[SessionManager] Session already active, skipping restore");
+                _sessionData.MarkRestoreComplete();
+                return;
+            }
+
+            _currentRelayJoinCode = _sessionData.RelayJoinCode;
+
+            // SessionConfig 복원
+            var config = _sessionData.GetSessionConfig();
+
+            // 세션 재생성
+            if (_sessionData.IsHost)
+            {
+                Session.Create(config, _sessionData.LocalPlayerId, _sessionData.LocalPlayerName);
+            }
+            else
+            {
+                Session.Join(_sessionData.SessionId, _sessionData.LocalPlayerId, _sessionData.LocalPlayerName);
+            }
+
+            // 다른 플레이어들 복원
+            foreach (var playerData in _sessionData.Players)
+            {
+                if (playerData.playerId == _sessionData.LocalPlayerId) continue;
+
+                var player = playerData.ToSessionPlayer();
+                Session.AddPlayer(player);
+            }
+
+            // 세션 상태가 InProgress였다면 다시 시작
+            if (_sessionData.SessionState == SessionState.InProgress)
+            {
+                Session.StartSession();
+            }
+
+            // 복원 완료 플래그 해제
+            _sessionData.MarkRestoreComplete();
+
+            Debug.Log($"[SessionManager] Session restored - IsHost: {IsHost}, Players: {Session.PlayerCount}, RelayCode: {_currentRelayJoinCode}");
+#endif
+        }
+
+        /// <summary>
+        /// 세션 데이터 클리어 (게임 종료 시)
+        /// 에디터에서는 동작하지 않음 (빌드 전용)
+        /// </summary>
+        public void ClearSessionData()
+        {
+#if !UNITY_EDITOR
+            _sessionData?.Clear();
+#endif
+        }
+
+        #endregion
+
         #region Cleanup
 
         /// <summary>
@@ -361,6 +488,9 @@ namespace RealmForge.Session
             _serverRelayData = null;
             _currentRelayJoinCode = null;
             _currentLobby = null;
+
+            // 세션 데이터 클리어
+            ClearSessionData();
 
             Debug.Log("[SessionManager] Session ended");
         }

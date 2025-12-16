@@ -441,6 +441,9 @@ public class RoomManager : MonoBehaviour
     {
         if (!string.IsNullOrEmpty(gameSceneName))
         {
+            // 씬 전환 전에 세션 데이터 저장
+            SessionManager.Instance.SaveSessionToData();
+
             SceneManager.LoadScene(gameSceneName);
         }
         else
