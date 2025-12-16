@@ -2,7 +2,7 @@ using UnityEngine;
 using System;
 using Unity.Collections;
 using Unity.Mathematics;
-
+/*
 public struct OctreeNode
 {
     public int val;
@@ -73,3 +73,4 @@ public class OctreeManager : MonoBehaviour
         GL.PopMatrix();
     }
 }
+*/
