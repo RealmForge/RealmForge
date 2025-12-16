@@ -9,6 +9,7 @@ public class NoiseTestAuthoring : MonoBehaviour
     public int octaves = 4;
     public float persistence = 0.5f;
     public float lacunarity = 2f;
+    public float3 offset = float3.zero;
     public int seed = 0;
 
     [Header("Chunk Settings")]
@@ -41,7 +42,7 @@ public class NoiseTestAuthoring : MonoBehaviour
                             Octaves = authoring.octaves,
                             Persistence = authoring.persistence,
                             Lacunarity = authoring.lacunarity,
-                            Offset = float3.zero,
+                            Offset = authoring.offset,
                             Seed = authoring.seed
                         });
 

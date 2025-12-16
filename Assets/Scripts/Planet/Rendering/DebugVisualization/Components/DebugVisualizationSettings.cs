@@ -20,3 +20,4 @@ public struct DebugVisualizationCube : IComponentData
 {
     public Entity SourceChunk; // 어느 청크에서 생성되었는지
 }
+

@@ -55,7 +55,8 @@ public struct PerlinNoiseJob : IJobParallelFor
             frequency *= Lacunarity;
         }
 
-        return noiseHeight / maxValue;
+        // -1~1 범위를 0~1 범위로 매핑
+        return (noiseHeight / maxValue) * 0.5f + 0.5f;
     }
 
     // 간단한 3D Perlin Noise 구현

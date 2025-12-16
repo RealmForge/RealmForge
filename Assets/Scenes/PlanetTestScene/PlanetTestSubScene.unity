@@ -149,8 +149,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   CubePrefab: {fileID: 2546216984821889840, guid: 6db83a3a50f153e4aa5793370debc9e8, type: 3}
-  CubeSize: 0.125
-  Threshold: 0.043
+  CubeSize: 1
+  Threshold: 0.551
   UseThreshold: 1
 --- !u!4 &170507915
 Transform:
@@ -200,12 +200,16 @@ MonoBehaviour:
   octaves: 4
   persistence: 0.5
   lacunarity: 2
+  offset:
+    x: 0
+    y: 0
+    z: 0
   seed: 0
   chunkSize: 16
   chunkGridSize:
-    x: 4
-    y: 4
-    z: 4
+    x: 1
+    y: 1
+    z: 1
 --- !u!4 &1847127008
 Transform:
   m_ObjectHideFlags: 0
