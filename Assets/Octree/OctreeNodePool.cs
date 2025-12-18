@@ -5,11 +5,27 @@ using Unity.Mathematics;
 public struct OctreeNode
 {
     public int ParentIndex;
+    
+    /// <summary>
+    /// 자신이 부모의 몇 번째 자식인지 (0~7)
+    /// 비트 의미:
+    /// - bit 0 (x): 0=부모의 min.x쪽, 1=부모의 max.x쪽
+    /// - bit 1 (y): 0=부모의 min.y쪽, 1=부모의 max.y쪽  
+    /// - bit 2 (z): 0=부모의 min.z쪽, 1=부모의 max.z쪽
+    /// </summary>
+    public int ChildIndex;
+    
     public int Depth;
+    
+    /// <summary>
+    /// 이 노드의 "외부 꼭짓점" 위치
+    /// ChildIndex번 꼭짓점 = 부모 영역의 해당 코너와 일치하는 점
+    /// 예: ChildIndex=0이면 이 노드의 min 꼭짓점, ChildIndex=7이면 max 꼭짓점
+    /// </summary>
     public float3 Center;
+    
     public float Size;
     
-    // 자식 8개 인덱스
     public int Child0, Child1, Child2, Child3;
     public int Child4, Child5, Child6, Child7;
     
@@ -19,14 +35,8 @@ public struct OctreeNode
     {
         return i switch
         {
-            0 => Child0,
-            1 => Child1,
-            2 => Child2,
-            3 => Child3,
-            4 => Child4,
-            5 => Child5,
-            6 => Child6,
-            7 => Child7,
+            0 => Child0, 1 => Child1, 2 => Child2, 3 => Child3,
+            4 => Child4, 5 => Child5, 6 => Child6, 7 => Child7,
             _ => -1
         };
     }
@@ -46,11 +56,31 @@ public struct OctreeNode
         }
     }
     
+    /// <summary>
+    /// Center와 ChildIndex를 이용해 이 노드의 실제 AABB 계산
+    /// </summary>
+    public void GetAABB(out float3 min, out float3 max)
+    {
+        // ChildIndex 비트가 0이면 Center가 해당 축의 min쪽
+        // ChildIndex 비트가 1이면 Center가 해당 축의 max쪽
+        
+        // 따라서 안쪽 방향(부모 중심 방향)으로 Size만큼 확장
+        float dx = ((ChildIndex & 1) == 0) ? Size : -Size;
+        float dy = ((ChildIndex & 2) == 0) ? Size : -Size;
+        float dz = ((ChildIndex & 4) == 0) ? Size : -Size;
+        
+        float3 end = Center + new float3(dx, dy, dz);
+        
+        min = math.min(Center, end);
+        max = math.max(Center, end);
+    }
+    
     public static OctreeNode CreateEmpty()
     {
         return new OctreeNode
         {
             ParentIndex = -1,
+            ChildIndex = 0,
             Depth = 0,
             Center = float3.zero,
             Size = 0,
@@ -71,7 +101,6 @@ public struct OctreeNodePool : IDisposable
     public OctreeNodePool(int capacity, Allocator allocator)
     {
         Capacity = capacity;
-        
         _nodes = new NativeArray<OctreeNode>(capacity, allocator);
         _isUsed = new NativeArray<bool>(capacity, allocator);
         _freeList = new NativeList<int>(capacity, allocator);
@@ -95,9 +124,7 @@ public struct OctreeNodePool : IDisposable
         index = _freeList[last];
         _freeList.RemoveAt(last);
         _isUsed[index] = true;
-        
         _nodes[index] = OctreeNode.CreateEmpty();
-        
         return true;
     }
     
@@ -105,83 +132,80 @@ public struct OctreeNodePool : IDisposable
     {
         if (index < 0 || index >= Capacity) return;
         if (!_isUsed[index]) return;
-        
         _isUsed[index] = false;
         _freeList.Add(index);
     }
     
     public OctreeNode Get(int index) => _nodes[index];
-    
     public void Set(int index, OctreeNode node) => _nodes[index] = node;
-    
     public bool IsUsed(int index) => _isUsed[index];
-    
     public int UsedCount => Capacity - _freeList.Length;
 
     public bool Subdivide(int parentIndex)
     {
         var parent = _nodes[parentIndex];
-        
-        if (!parent.IsLeaf) return false;
-        if (_freeList.Length < 8) return false;
-        
+        if (!parent.IsLeaf || _freeList.Length < 8) return false;
+
         float childSize = parent.Size / 2f;
-        float offset = childSize / 2f;
         
+        // 부모의 실제 AABB 계산
+        parent.GetAABB(out float3 parentMin, out float3 parentMax);
+        float3 parentMid = (parentMin + parentMax) / 2f;
+
         for (int i = 0; i < 8; i++)
         {
             if (!TryRent(out int childIdx)) return false;
-            
-            // 부모에 자식 인덱스 저장
             parent.SetChild(i, childIdx);
+        
+            // 자식 i의 영역 계산
+            // i의 비트가 0이면 부모의 min쪽 절반, 1이면 max쪽 절반
+            float3 childMin, childMax;
+            childMin.x = ((i & 1) == 0) ? parentMin.x : parentMid.x;
+            childMax.x = ((i & 1) == 0) ? parentMid.x : parentMax.x;
+            childMin.y = ((i & 2) == 0) ? parentMin.y : parentMid.y;
+            childMax.y = ((i & 2) == 0) ? parentMid.y : parentMax.y;
+            childMin.z = ((i & 4) == 0) ? parentMin.z : parentMid.z;
+            childMax.z = ((i & 4) == 0) ? parentMid.z : parentMax.z;
             
-            float3 childCenter = parent.Center + new float3(
-                ((i & 1) == 0) ? -offset : +offset,
-                ((i & 2) == 0) ? -offset : +offset,
-                ((i & 4) == 0) ? -offset : +offset
-            );
-            
+            // 자식의 Center = 자식 영역에서 "부모 경계와 맞닿는 꼭짓점"
+            // = 자식 영역의 i번 꼭짓점
+            // 비트가 0이면 min (부모 min과 맞닿음), 1이면 max (부모 max와 맞닿음)
+            float3 childCenter;
+            childCenter.x = ((i & 1) == 0) ? childMin.x : childMax.x;
+            childCenter.y = ((i & 2) == 0) ? childMin.y : childMax.y;
+            childCenter.z = ((i & 4) == 0) ? childMin.z : childMax.z;
+        
             var child = OctreeNode.CreateEmpty();
             child.ParentIndex = parentIndex;
+            child.ChildIndex = i;
             child.Depth = parent.Depth + 1;
             child.Center = childCenter;
             child.Size = childSize;
-            
+        
             _nodes[childIdx] = child;
         }
-        
         _nodes[parentIndex] = parent;
-        
         return true;
     }
     
     public bool Merge(int parentIndex)
     {
         var parent = _nodes[parentIndex];
-        
         if (parent.IsLeaf) return false;
         
         for (int i = 0; i < 8; i++)
         {
             int childIdx = parent.GetChild(i);
-            
-            // 손자 있으면 먼저 병합
-            if (!_nodes[childIdx].IsLeaf)
-            {
-                Merge(childIdx);
-            }
-            
+            if (!_nodes[childIdx].IsLeaf) Merge(childIdx);
             Return(childIdx);
         }
         
-        // 자식 연결 해제
         parent.Child0 = -1; parent.Child1 = -1;
         parent.Child2 = -1; parent.Child3 = -1;
         parent.Child4 = -1; parent.Child5 = -1;
         parent.Child6 = -1; parent.Child7 = -1;
         
         _nodes[parentIndex] = parent;
-        
         return true;
     }
     
