@@ -37,7 +37,18 @@ partial struct PlayerInputSystem : ISystem
             {
                 inputVector.x = +1f;
             }
+
+            bool jump = Input.GetKeyDown(KeyCode.Space); // GetKeyDown = 눌린 순간만 true
+
+            // 마우스 입력 (항상 받기)
+            float2 mouseDelta = new float2(
+                Input.GetAxis("Mouse X"),
+                Input.GetAxis("Mouse Y")
+            );
+
             PlayerInput.ValueRW.inputVector = inputVector;
+            PlayerInput.ValueRW.jump = jump;
+            PlayerInput.ValueRW.mouseDelta = mouseDelta;
         }
 
     }

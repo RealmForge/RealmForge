@@ -12,12 +12,12 @@ GameObject:
   - component: {fileID: 2587403313607124730}
   - component: {fileID: 5006272357635177556}
   - component: {fileID: 3807423935620497651}
-  - component: {fileID: 2078930755131577938}
   - component: {fileID: 6190376601466969518}
   - component: {fileID: 5087874014340792050}
   - component: {fileID: 58266044563899019}
+  - component: {fileID: 6558806102489469090}
   m_Layer: 0
-  m_Name: Capsule
+  m_Name: Player
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -32,7 +32,7 @@ Transform:
   m_GameObject: {fileID: 5802269474707395191}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.96, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -103,29 +103,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: efd7741dd66413f46a9b67a8d7179a50, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!136 &2078930755131577938
-CapsuleCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5802269474707395191}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 2
-  m_Radius: 0.5
-  m_Height: 2
-  m_Direction: 1
-  m_Center: {x: 0, y: 0, z: 0}
+  height: 2
+  moveSpeed: 10
+  jumpForce: 15
 --- !u!114 &6190376601466969518
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -176,3 +156,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2e16c8ef1dfe2554f911217a849ba623, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!136 &6558806102489469090
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5802269474707395191}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.5
+  m_Height: 2
+  m_Direction: 1
+  m_Center: {x: 0, y: 0, z: 0}

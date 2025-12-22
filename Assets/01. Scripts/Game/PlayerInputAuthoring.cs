@@ -17,4 +17,6 @@ public class PlayerInputAuthoring : MonoBehaviour
 public struct PlayerInput : IInputComponentData
 {
     public float2 inputVector;
+    public bool jump;
+    public float2 mouseDelta; // 마우스 이동량 (X, Y)
 }

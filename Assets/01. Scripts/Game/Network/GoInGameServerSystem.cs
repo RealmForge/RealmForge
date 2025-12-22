@@ -32,9 +32,7 @@ partial struct GoInGameServerSystem : ISystem
             entityCommandBuffer.DestroyEntity(entity);
 
             Entity playerEntity = entityCommandBuffer.Instantiate(entitiesReference.playerPrefabEntity);
-            entityCommandBuffer.SetComponent(playerEntity, LocalTransform.FromPosition(new float3(
-                UnityEngine.Random.Range(-10, 10), 0, 0
-                )));
+            entityCommandBuffer.SetComponent(playerEntity, LocalTransform.FromPosition(new float3(0, 3, 0)));
             
             NetworkId networkId = SystemAPI.GetComponent<NetworkId>(receiveRpcCommandRequest.ValueRO.SourceConnection);
             entityCommandBuffer.AddComponent(playerEntity, new GhostOwner

@@ -130,7 +130,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.netcode": {
-      "version": "1.9.0",
+      "version": "1.9.3",
       "depth": 0,
       "source": "registry",
       "dependencies": {
