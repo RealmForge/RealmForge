@@ -38,6 +38,7 @@ public class LobbyManager : MonoBehaviour
     private string _playerName = "Player";
     private List<Lobby> _availableLobbies = new List<Lobby>();
     private float _nextRefreshTime;
+    private bool _isInitialized = false;
 
     public string PlayerName => _playerName;
 
@@ -50,6 +51,9 @@ public class LobbyManager : MonoBehaviour
 
     private void Update()
     {
+        // 초기화 완료 전에는 갱신하지 않음
+        if (!_isInitialized) return;
+
         // 자동으로 로비 목록 갱신 (방에 들어가지 않은 상태에서만)
         if (Time.time >= _nextRefreshTime)
         {
@@ -78,6 +82,10 @@ public class LobbyManager : MonoBehaviour
             {
                 Debug.Log($"[INIT] Already signed in as: {AuthenticationService.Instance.PlayerId}");
             }
+
+            // 초기화 완료
+            _isInitialized = true;
+            Debug.Log("[INIT] Initialization complete");
 
             // 초기 로비 목록 로드
             Debug.Log("[INIT] Loading initial lobby list...");
