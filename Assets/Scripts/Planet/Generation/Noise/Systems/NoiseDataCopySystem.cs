@@ -58,8 +58,9 @@ public partial struct NoiseDataCopySystem : ISystem
                 if (noiseValues.IsCreated) noiseValues.Dispose(); 
                 
                 // 리스트에서 제거 및 다음 단계 신호
-                perlinJobsList.RemoveAtSwapBack(i); 
-                ecb.SetComponentEnabled<NoiseVisualizationReady>(entity, true); // 다음 단계 요청 활성화
+                perlinJobsList.RemoveAtSwapBack(i);
+                // ecb.SetComponentEnabled<NoiseVisualizationReady>(entity, true); // DebugVisualization 요청
+                ecb.SetComponentEnabled<MeshGenerationRequest>(entity, true);   // MarchingCubes 요청
             }
         }
         

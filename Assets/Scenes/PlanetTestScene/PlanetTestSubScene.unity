@@ -150,7 +150,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   CubePrefab: {fileID: 2546216984821889840, guid: 6db83a3a50f153e4aa5793370debc9e8, type: 3}
   CubeSize: 1
-  Threshold: 0.551
+  Threshold: 0.5
   UseThreshold: 1
 --- !u!4 &170507915
 Transform:
@@ -207,9 +207,9 @@ MonoBehaviour:
   seed: 0
   chunkSize: 16
   chunkGridSize:
-    x: 1
-    y: 1
-    z: 1
+    x: 2
+    y: 2
+    z: 2
 --- !u!4 &1847127008
 Transform:
   m_ObjectHideFlags: 0

@@ -53,6 +53,10 @@ public class NoiseTestAuthoring : MonoBehaviour
                         AddComponent(entity, new NoiseVisualizationReady());
                         SetComponentEnabled<NoiseVisualizationReady>(entity, false);
 
+                        // MarchingCubes 메쉬 생성 요청 플래그 (Disabled = 아직 준비 안됨)
+                        AddComponent(entity, new MeshGenerationRequest());
+                        SetComponentEnabled<MeshGenerationRequest>(entity, false);
+
                         // 노이즈 데이터 버퍼
                         AddBuffer<NoiseDataBuffer>(entity);
                     }

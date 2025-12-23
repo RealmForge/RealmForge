@@ -50,13 +50,15 @@ public partial struct NoiseGenerationSystem : ISystem
                 .WithEntityAccess())
         {
             int chunkSize = chunkData.ValueRO.ChunkSize;
-            int totalSize = chunkSize * chunkSize * chunkSize;
+            int sampleSize = chunkSize + 1;  // +1 for seamless chunk boundaries
+            int totalSize = sampleSize * sampleSize * sampleSize;
 
             var noiseValues = new NativeArray<float>(totalSize, Allocator.TempJob);
 
             var job = new PerlinNoiseJob
             {
                 ChunkSize = chunkSize,
+                SampleSize = sampleSize,
                 ChunkPosition = chunkData.ValueRO.ChunkPosition,
                 Scale = noiseSettings.ValueRO.Scale,
                 Octaves = noiseSettings.ValueRO.Octaves,

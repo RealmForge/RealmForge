@@ -7,6 +7,7 @@ using Unity.Mathematics;
 public struct PerlinNoiseJob : IJobParallelFor
 {
     public int ChunkSize;
+    public int SampleSize;  // ChunkSize + 1 (for seamless chunk boundaries)
     public int3 ChunkPosition;
     public float Scale;
     public int Octaves;
@@ -20,12 +21,12 @@ public struct PerlinNoiseJob : IJobParallelFor
 
     public void Execute(int index)
     {
-        // 1D index를 3D 좌표로 변환
-        int x = index % ChunkSize;
-        int y = (index / ChunkSize) % ChunkSize;
-        int z = index / (ChunkSize * ChunkSize);
+        // 1D index를 3D 좌표로 변환 (SampleSize 기준)
+        int x = index % SampleSize;
+        int y = (index / SampleSize) % SampleSize;
+        int z = index / (SampleSize * SampleSize);
 
-        // 월드 좌표 계산
+        // 월드 좌표 계산 (ChunkSize 기준으로 청크 위치 계산)
         float3 worldPos = new float3(
             ChunkPosition.x * ChunkSize + x,
             ChunkPosition.y * ChunkSize + y,
