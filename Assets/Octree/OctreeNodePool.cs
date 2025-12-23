@@ -5,25 +5,9 @@ using Unity.Mathematics;
 public struct OctreeNode
 {
     public int ParentIndex;
-    
-    /// <summary>
-    /// 자신이 부모의 몇 번째 자식인지 (0~7)
-    /// 비트 의미:
-    /// - bit 0 (x): 0=부모의 min.x쪽, 1=부모의 max.x쪽
-    /// - bit 1 (y): 0=부모의 min.y쪽, 1=부모의 max.y쪽  
-    /// - bit 2 (z): 0=부모의 min.z쪽, 1=부모의 max.z쪽
-    /// </summary>
     public int ChildIndex;
-    
     public int Depth;
-    
-    /// <summary>
-    /// 이 노드의 "외부 꼭짓점" 위치
-    /// ChildIndex번 꼭짓점 = 부모 영역의 해당 코너와 일치하는 점
-    /// 예: ChildIndex=0이면 이 노드의 min 꼭짓점, ChildIndex=7이면 max 꼭짓점
-    /// </summary>
     public float3 Center;
-    
     public float Size;
     
     public int Child0, Child1, Child2, Child3;
@@ -56,15 +40,8 @@ public struct OctreeNode
         }
     }
     
-    /// <summary>
-    /// Center와 ChildIndex를 이용해 이 노드의 실제 AABB 계산
-    /// </summary>
     public void GetAABB(out float3 min, out float3 max)
     {
-        // ChildIndex 비트가 0이면 Center가 해당 축의 min쪽
-        // ChildIndex 비트가 1이면 Center가 해당 축의 max쪽
-        
-        // 따라서 안쪽 방향(부모 중심 방향)으로 Size만큼 확장
         float dx = ((ChildIndex & 1) == 0) ? Size : -Size;
         float dy = ((ChildIndex & 2) == 0) ? Size : -Size;
         float dz = ((ChildIndex & 4) == 0) ? Size : -Size;
@@ -148,7 +125,6 @@ public struct OctreeNodePool : IDisposable
 
         float childSize = parent.Size / 2f;
         
-        // 부모의 실제 AABB 계산
         parent.GetAABB(out float3 parentMin, out float3 parentMax);
         float3 parentMid = (parentMin + parentMax) / 2f;
 
@@ -157,8 +133,6 @@ public struct OctreeNodePool : IDisposable
             if (!TryRent(out int childIdx)) return false;
             parent.SetChild(i, childIdx);
         
-            // 자식 i의 영역 계산
-            // i의 비트가 0이면 부모의 min쪽 절반, 1이면 max쪽 절반
             float3 childMin, childMax;
             childMin.x = ((i & 1) == 0) ? parentMin.x : parentMid.x;
             childMax.x = ((i & 1) == 0) ? parentMid.x : parentMax.x;
@@ -167,9 +141,6 @@ public struct OctreeNodePool : IDisposable
             childMin.z = ((i & 4) == 0) ? parentMin.z : parentMid.z;
             childMax.z = ((i & 4) == 0) ? parentMid.z : parentMax.z;
             
-            // 자식의 Center = 자식 영역에서 "부모 경계와 맞닿는 꼭짓점"
-            // = 자식 영역의 i번 꼭짓점
-            // 비트가 0이면 min (부모 min과 맞닿음), 1이면 max (부모 max와 맞닿음)
             float3 childCenter;
             childCenter.x = ((i & 1) == 0) ? childMin.x : childMax.x;
             childCenter.y = ((i & 2) == 0) ? childMin.y : childMax.y;

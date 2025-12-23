@@ -8,6 +8,7 @@
       <change beforePath="$PROJECT_DIR$/.idea/.idea.RealmForge/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.RealmForge/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Octree/OctreeNodePool.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Octree/OctreeNodePool.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Octree/OctreeTest.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Octree/OctreeTest.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/octree.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/octree.unity" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -20,6 +21,7 @@
   <component name="HighlightingSettingsPerFile">
     <setting file="file://$PROJECT_DIR$/Assets/Octree/OctreeManager.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Octree/OctreeTest.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Assets/Octree/PlayerController.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Library/PackageCache/com.unity.entities@42c4e852ffb4/Unity.Entities/SystemState.cs" root0="SKIP_HIGHLIGHTING" />
   </component>
   <component name="ProjectColorInfo">{
@@ -103,7 +105,8 @@
       <workItem from="1765904770013" duration="2036000" />
       <workItem from="1765956321826" duration="1036000" />
       <workItem from="1766033482429" duration="5154000" />
-      <workItem from="1766082340687" duration="643000" />
+      <workItem from="1766082340687" duration="725000" />
+      <workItem from="1766468022831" duration="7754000" />
     </task>
     <servers />
   </component>
