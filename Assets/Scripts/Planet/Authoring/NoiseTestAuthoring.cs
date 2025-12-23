@@ -2,6 +2,16 @@ using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
+/// <summary>
+/// [DEPRECATED] 단일 Perlin 노이즈 테스트용 Authoring.
+/// NoiseGenerationSystem이 PlanetData를 요구하도록 변경되어 현재 동작하지 않음.
+///
+/// 대체: PlanetAuthoring 사용
+///
+/// 추후 PerlinNoiseJob을 다시 사용할 경우 참고용으로 보관.
+/// NoiseGenerationSystem에서 NoiseSettings 쿼리를 복원하면 재사용 가능.
+/// </summary>
+[System.Obsolete("Use PlanetAuthoring instead. NoiseGenerationSystem now requires PlanetData.")]
 public class NoiseTestAuthoring : MonoBehaviour
 {
     [Header("Noise Settings")]

@@ -3,6 +3,30 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 
+/// <summary>
+/// 단일 Perlin 노이즈 생성 Job.
+/// 현재는 PlanetNoiseJob으로 대체되어 사용되지 않음.
+/// 추후 단순 노이즈 생성이 필요할 때 재사용 가능.
+///
+/// 사용 예시:
+/// <code>
+/// var job = new PerlinNoiseJob
+/// {
+///     ChunkSize = 16,
+///     SampleSize = 17,
+///     ChunkPosition = new int3(0, 0, 0),
+///     Scale = 50f,
+///     Octaves = 4,
+///     Persistence = 0.5f,
+///     Lacunarity = 2f,
+///     Offset = float3.zero,
+///     Seed = 0,
+///     NoiseValues = new NativeArray&lt;float&gt;(17*17*17, Allocator.TempJob)
+/// };
+/// var handle = job.Schedule(totalSize, 64);
+/// </code>
+/// 결과는 NoiseJobResult로 래핑하여 NoiseDataCopySystem에서 처리.
+/// </summary>
 [BurstCompile]
 public struct PerlinNoiseJob : IJobParallelFor
 {

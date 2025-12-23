@@ -186,6 +186,10 @@ Chunk(0,0,0)의 x=16 == Chunk(1,0,0)의 x=0 (Perlin noise deterministic)
 - LOD에서 부드러운 전환이 필요한지?
 - 메모리 최적화가 우선인지?
 
+### 8. 폴더 구조 재검토 (Planned)
+- 현재: `Planet/Generation/Planet/` (중복)
+- 검토 필요: 상위 폴더 구조 정리 (Planet → World 또는 Terrain 등)
+
 ## Related Systems
 
 - `NoiseGenerationSystem`: Perlin 노이즈 생성

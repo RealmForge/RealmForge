@@ -1,10 +1,8 @@
-// Systems/NoiseDataCopySystem.cs
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using RealmForge.Planet.Generation.Noise.Components;
 
 [UpdateAfter(typeof(NoiseGenerationSystem))]
 [BurstCompile]
@@ -22,27 +20,26 @@ public partial struct NoiseDataCopySystem : ISystem
     public void OnUpdate(ref SystemState state)
     {
         ref var noiseGenSystem = ref state.WorldUnmanaged.GetUnsafeSystemRef<NoiseGenerationSystem>(m_NoiseGenerationSystemHandle);
-        ref var perlinJobsList = ref noiseGenSystem.m_PerlinJobResults;
+        ref var noiseJobsList = ref noiseGenSystem.m_NoiseJobResults;
 
-        if (!perlinJobsList.IsCreated || perlinJobsList.Length == 0) return;
+        if (!noiseJobsList.IsCreated || noiseJobsList.Length == 0) return;
 
         var ecb = new EntityCommandBuffer(Allocator.TempJob);
         var entityManager = state.EntityManager;
 
         // 역순으로 순회하며 처리 후 제거 (안전성 확보)
-        
-        for (int i = perlinJobsList.Length - 1; i >= 0; i--)
+        for (int i = noiseJobsList.Length - 1; i >= 0; i--)
         {
-            var jobResult = perlinJobsList[i];
-            
+            var jobResult = noiseJobsList[i];
+
             if (jobResult.JobHandle.IsCompleted)
             {
                 // Job 완료 보장 및 NativeArray 데이터 복사
-                jobResult.JobHandle.Complete(); 
-                
+                jobResult.JobHandle.Complete();
+
                 Entity entity = jobResult.Entity;
                 NativeArray<float> noiseValues = jobResult.NoiseValues;
-                
+
                 // 데이터 복사 (NativeArray -> Dynamic Buffer)
                 if (entityManager.HasBuffer<NoiseDataBuffer>(entity))
                 {
@@ -53,12 +50,12 @@ public partial struct NoiseDataCopySystem : ISystem
                         buffer[j] = new NoiseDataBuffer { Value = noiseValues[j] };
                     }
                 }
-                
+
                 // 메모리 해제
-                if (noiseValues.IsCreated) noiseValues.Dispose(); 
-                
+                if (noiseValues.IsCreated) noiseValues.Dispose();
+
                 // 리스트에서 제거 및 다음 단계 신호
-                perlinJobsList.RemoveAtSwapBack(i);
+                noiseJobsList.RemoveAtSwapBack(i);
                 // ecb.SetComponentEnabled<NoiseVisualizationReady>(entity, true); // DebugVisualization 요청
                 ecb.SetComponentEnabled<MeshGenerationRequest>(entity, true);   // MarchingCubes 요청
             }
