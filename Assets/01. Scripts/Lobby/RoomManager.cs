@@ -29,7 +29,7 @@ public class RoomManager : MonoBehaviour
     [SerializeField] private GameObject userPanelPrefab;
 
     [Header("Settings")]
-    [SerializeField] private float lobbyPollInterval = 1.5f;
+    [SerializeField] private float lobbyPollInterval = 3f;  // Rate limit 방지를 위해 3초로 증가
     [SerializeField] private float heartbeatInterval = 15f;
     [SerializeField] private string gameSceneName = "GameScene";
 
@@ -43,7 +43,7 @@ public class RoomManager : MonoBehaviour
 
     private void Update()
     {
-        if (!_isInRoom) return;
+        if (!_isInRoom || _isGameStarting) return;  // 게임 시작 중에는 폴링 중지
 
         // 로비 상태를 주기적으로 폴링
         if (Time.time >= _nextPollTime)
@@ -173,9 +173,15 @@ public class RoomManager : MonoBehaviour
             Debug.Log("[ROOM] Lobby no longer exists");
             await HandleLobbyDeleted();
         }
+        catch (LobbyServiceException e) when (e.Reason == LobbyExceptionReason.RateLimited)
+        {
+            // Rate limit - 다음 폴링까지 추가 대기
+            Debug.LogWarning("[ROOM] Rate limited, delaying next poll");
+            _nextPollTime = Time.time + lobbyPollInterval * 2f;
+        }
         catch (Exception e)
         {
-            Debug.LogError($"[ROOM] Failed to poll lobby data: {e.Message}");
+            Debug.LogWarning($"[ROOM] Failed to poll lobby data: {e.Message}");
         }
     }
 

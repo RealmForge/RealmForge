@@ -101,6 +101,13 @@ namespace RealmForge.Session
         /// </summary>
         public void InitializeSessionFromLobby(Lobby lobby, string localPlayerName, bool isHost)
         {
+            // 이전 세션이 있으면 정리
+            if (Session.State != SessionState.None)
+            {
+                Debug.Log("[SessionManager] Cleaning up previous session before initializing new one");
+                ResetSession();
+            }
+
             _currentLobby = lobby;
 
             // SessionConfig 설정
@@ -341,17 +348,12 @@ namespace RealmForge.Session
 
         /// <summary>
         /// 씬 전환 전에 세션 데이터를 ScriptableObject에 저장
-        /// 에디터에서는 동작하지 않음 (빌드 전용)
         /// </summary>
         public void SaveSessionToData()
         {
-#if UNITY_EDITOR
-            Debug.Log("[SessionManager] SaveSessionToData skipped in Editor");
-            return;
-#else
             if (_sessionData == null)
             {
-                Debug.LogError("[SessionManager] SessionDataSO not found!");
+                Debug.LogWarning("[SessionManager] SessionDataSO not found, skipping save");
                 return;
             }
 
@@ -368,19 +370,25 @@ namespace RealmForge.Session
             );
 
             Debug.Log("[SessionManager] Session data saved to ScriptableObject");
-#endif
         }
 
         /// <summary>
         /// 씬 전환 후 ScriptableObject에서 세션 데이터 복원 시도
-        /// 에디터에서는 동작하지 않음 (빌드 전용)
+        /// SessionManager가 DontDestroyOnLoad이므로 일반적으로 복원이 필요하지 않음
         /// </summary>
         private void TryRestoreSessionFromData()
         {
-#if UNITY_EDITOR
-            Debug.Log("[SessionManager] TryRestoreSessionFromData skipped in Editor");
-            return;
-#else
+            // SessionManager가 DontDestroyOnLoad이므로 Session이 이미 있으면 복원 불필요
+            if (Session.State != SessionState.None)
+            {
+                Debug.Log("[SessionManager] Session already active, no restore needed");
+                if (_sessionData != null && _sessionData.PendingRestore)
+                {
+                    _sessionData.MarkRestoreComplete();
+                }
+                return;
+            }
+
             if (_sessionData == null || !_sessionData.HasValidData)
             {
                 Debug.Log("[SessionManager] No session data to restore");
@@ -395,14 +403,6 @@ namespace RealmForge.Session
             }
 
             Debug.Log("[SessionManager] Restoring session from saved data...");
-
-            // 이미 세션이 진행 중이면 복원하지 않음
-            if (Session.State != SessionState.None)
-            {
-                Debug.Log("[SessionManager] Session already active, skipping restore");
-                _sessionData.MarkRestoreComplete();
-                return;
-            }
 
             _currentRelayJoinCode = _sessionData.RelayJoinCode;
 
@@ -438,23 +438,59 @@ namespace RealmForge.Session
             _sessionData.MarkRestoreComplete();
 
             Debug.Log($"[SessionManager] Session restored - IsHost: {IsHost}, Players: {Session.PlayerCount}, RelayCode: {_currentRelayJoinCode}");
-#endif
         }
 
         /// <summary>
         /// 세션 데이터 클리어 (게임 종료 시)
-        /// 에디터에서는 동작하지 않음 (빌드 전용)
         /// </summary>
         public void ClearSessionData()
         {
-#if !UNITY_EDITOR
             _sessionData?.Clear();
-#endif
         }
 
         #endregion
 
         #region Cleanup
+
+        /// <summary>
+        /// 새 세션 시작을 위해 이전 세션 상태 초기화
+        /// </summary>
+        private void ResetSession()
+        {
+            // 기존 월드 정리
+            if (_clientWorld != null)
+            {
+                NetcodeWorldHelper.DisposeWorld(_clientWorld);
+                _clientWorld = null;
+            }
+
+            if (_serverWorld != null)
+            {
+                NetcodeWorldHelper.DisposeWorld(_serverWorld);
+                _serverWorld = null;
+            }
+
+            // NetcodeAdapter 재생성
+            NetcodeAdapter?.Dispose();
+            NetcodeAdapter = new NetcodeSessionAdapter(Session, IdMapper);
+
+            // ID 매핑 정리
+            IdMapper.Clear();
+
+            // GameSession 초기화를 위해 종료 후 재생성
+            Session.EndSession();
+            Session = new GameSession();
+            Session.OnStateChanged += HandleSessionStateChanged;
+            Session.OnPlayerJoined += player => OnPlayerJoined?.Invoke(player);
+            Session.OnPlayerLeft += player => OnPlayerLeft?.Invoke(player);
+
+            _serverRelayData = null;
+            _currentRelayJoinCode = null;
+
+            ClearSessionData();
+
+            Debug.Log("[SessionManager] Session reset completed");
+        }
 
         /// <summary>
         /// 세션 종료 및 정리 (Lobby 정리는 RoomManager에서 처리)
