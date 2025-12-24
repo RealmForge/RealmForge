@@ -307,8 +307,24 @@ namespace RealmForge.Session
 
         public void Dispose()
         {
-            _connectionQuery.Dispose();
-            _networkIdQuery.Dispose();
+            try
+            {
+                // World가 유효할 때만 Query Dispose
+                if (_serverWorld != null && _serverWorld.IsCreated)
+                {
+                    _networkIdQuery.Dispose();
+                }
+                if ((_serverWorld != null && _serverWorld.IsCreated) ||
+                    (_clientWorld != null && _clientWorld.IsCreated))
+                {
+                    _connectionQuery.Dispose();
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[NetcodeSessionAdapter] Dispose warning: {e.Message}");
+            }
+
             _serverWorld = null;
             _clientWorld = null;
             _isInitialized = false;

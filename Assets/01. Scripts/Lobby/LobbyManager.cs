@@ -36,9 +36,11 @@ public class LobbyManager : MonoBehaviour
     [SerializeField] private RoomManager roomManager;
 
     private string _playerName = "Player";
-    private Lobby _currentLobby;
     private List<Lobby> _availableLobbies = new List<Lobby>();
     private float _nextRefreshTime;
+    private bool _isInitialized = false;
+
+    public string PlayerName => _playerName;
 
     private async void Start()
     {
@@ -49,8 +51,11 @@ public class LobbyManager : MonoBehaviour
 
     private void Update()
     {
-        // 자동으로 로비 목록 갱신
-        if (Time.time >= _nextRefreshTime && _currentLobby == null)
+        // 초기화 완료 전에는 갱신하지 않음
+        if (!_isInitialized) return;
+
+        // 자동으로 로비 목록 갱신 (방에 들어가지 않은 상태에서만)
+        if (Time.time >= _nextRefreshTime)
         {
             _nextRefreshTime = Time.time + lobbyRefreshInterval;
             _ = RefreshLobbyList();
@@ -77,6 +82,10 @@ public class LobbyManager : MonoBehaviour
             {
                 Debug.Log($"[INIT] Already signed in as: {AuthenticationService.Instance.PlayerId}");
             }
+
+            // 초기화 완료
+            _isInitialized = true;
+            Debug.Log("[INIT] Initialization complete");
 
             // 초기 로비 목록 로드
             Debug.Log("[INIT] Loading initial lobby list...");
@@ -271,7 +280,11 @@ public class LobbyManager : MonoBehaviour
                         { "PlayerName", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, _playerName) }
                     }
                 },
-                Data = new Dictionary<string, DataObject>()
+                Data = new Dictionary<string, DataObject>
+                {
+                    // RelayJoinCode를 위한 빈 데이터 (게임 시작 시 설정됨)
+                    { "RelayJoinCode", new DataObject(DataObject.VisibilityOptions.Member, "") }
+                }
             };
 
             // 비밀번호가 있으면 데이터에 추가 (Public이지만 비밀번호로 보호)
@@ -283,23 +296,20 @@ public class LobbyManager : MonoBehaviour
                     DataObject.IndexOptions.S1));
             }
 
-            _currentLobby = await LobbyService.Instance.CreateLobbyAsync(lobbyName, maxPlayersPerLobby, options);
+            Lobby createdLobby = await LobbyService.Instance.CreateLobbyAsync(lobbyName, maxPlayersPerLobby, options);
 
-            Debug.Log($"[CREATE] Created lobby: {_currentLobby.Name} (ID: {_currentLobby.Id})");
-            Debug.Log($"[CREATE] Lobby Code: {_currentLobby.LobbyCode}");
-            Debug.Log($"[CREATE] IsPrivate: {_currentLobby.IsPrivate}");
+            Debug.Log($"[CREATE] Created lobby: {createdLobby.Name} (ID: {createdLobby.Id})");
+            Debug.Log($"[CREATE] Lobby Code: {createdLobby.LobbyCode}");
+            Debug.Log($"[CREATE] IsPrivate: {createdLobby.IsPrivate}");
 
             // 생성 후 입력 필드 초기화
             createLobbyNameInput.text = "";
             createLobbyPasswordInput.text = "";
 
-            // 로비 하트비트 시작 (로비가 자동으로 제거되지 않도록)
-            InvokeRepeating(nameof(SendLobbyHeartbeat), 15f, 15f);
-
-            // RoomManager로 방 입장
+            // RoomManager로 방 입장 (하트비트는 RoomManager에서 관리)
             if (roomManager != null)
             {
-                roomManager.EnterRoom(_currentLobby);
+                roomManager.EnterRoom(createdLobby, _playerName);
             }
             else
             {
@@ -309,21 +319,6 @@ public class LobbyManager : MonoBehaviour
         catch (Exception e)
         {
             Debug.LogError($"Failed to create lobby: {e.Message}");
-        }
-    }
-
-    private async void SendLobbyHeartbeat()
-    {
-        if (_currentLobby != null)
-        {
-            try
-            {
-                await LobbyService.Instance.SendHeartbeatPingAsync(_currentLobby.Id);
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"Failed to send heartbeat: {e.Message}");
-            }
         }
     }
 
@@ -402,10 +397,10 @@ public class LobbyManager : MonoBehaviour
                 }
             };
 
-            _currentLobby = await LobbyService.Instance.JoinLobbyByIdAsync(lobbyId, options);
+            Lobby joinedLobby = await LobbyService.Instance.JoinLobbyByIdAsync(lobbyId, options);
 
-            Debug.Log($"[JOIN] Joined lobby: {_currentLobby.Name} (ID: {_currentLobby.Id})");
-            Debug.Log($"[JOIN] Players in lobby: {_currentLobby.Players.Count}/{_currentLobby.MaxPlayers}");
+            Debug.Log($"[JOIN] Joined lobby: {joinedLobby.Name} (ID: {joinedLobby.Id})");
+            Debug.Log($"[JOIN] Players in lobby: {joinedLobby.Players.Count}/{joinedLobby.MaxPlayers}");
 
             // 입력 필드 초기화
             joinLobbyNameInput.text = "";
@@ -414,7 +409,7 @@ public class LobbyManager : MonoBehaviour
             // RoomManager로 방 입장
             if (roomManager != null)
             {
-                roomManager.EnterRoom(_currentLobby);
+                roomManager.EnterRoom(joinedLobby, _playerName);
             }
             else
             {
@@ -442,15 +437,15 @@ public class LobbyManager : MonoBehaviour
                 }
             };
 
-            _currentLobby = await LobbyService.Instance.QuickJoinLobbyAsync(options);
+            Lobby joinedLobby = await LobbyService.Instance.QuickJoinLobbyAsync(options);
 
-            Debug.Log($"[QUICKJOIN] Quick joined lobby: {_currentLobby.Name} (ID: {_currentLobby.Id})");
-            Debug.Log($"[QUICKJOIN] Players in lobby: {_currentLobby.Players.Count}/{_currentLobby.MaxPlayers}");
+            Debug.Log($"[QUICKJOIN] Quick joined lobby: {joinedLobby.Name} (ID: {joinedLobby.Id})");
+            Debug.Log($"[QUICKJOIN] Players in lobby: {joinedLobby.Players.Count}/{joinedLobby.MaxPlayers}");
 
             // RoomManager로 방 입장
             if (roomManager != null)
             {
-                roomManager.EnterRoom(_currentLobby);
+                roomManager.EnterRoom(joinedLobby, _playerName);
             }
             else
             {
@@ -464,36 +459,4 @@ public class LobbyManager : MonoBehaviour
     }
 
     #endregion
-
-    #region Leave Lobby
-
-    public async Task LeaveLobby()
-    {
-        if (_currentLobby == null) return;
-
-        try
-        {
-            await LobbyService.Instance.RemovePlayerAsync(_currentLobby.Id, AuthenticationService.Instance.PlayerId);
-            Debug.Log($"Left lobby: {_currentLobby.Name}");
-
-            CancelInvoke(nameof(SendLobbyHeartbeat));
-            _currentLobby = null;
-
-            await RefreshLobbyList();
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"Failed to leave lobby: {e.Message}");
-        }
-    }
-
-    #endregion
-
-    private void OnDestroy()
-    {
-        if (_currentLobby != null)
-        {
-            _ = LeaveLobby();
-        }
-    }
 }

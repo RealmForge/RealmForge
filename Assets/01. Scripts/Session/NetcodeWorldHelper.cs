@@ -126,11 +126,11 @@ namespace RealmForge.Session
             var networkStreamDriver = query.GetSingletonRW<NetworkStreamDriver>();
             networkStreamDriver.ValueRW.ResetDriverStore(clientWorld.Unmanaged, ref driverStore);
 
-            // Relay를 통해 서버에 연결
-            var connectEndpoint = NetworkEndpoint.AnyIpv4.WithPort(0);
-            networkStreamDriver.ValueRW.Connect(entityManager, connectEndpoint);
+            // Relay를 통해 서버에 연결 - RelayServerData의 Endpoint 사용
+            var relayEndpoint = relayClientData.Endpoint;
+            networkStreamDriver.ValueRW.Connect(entityManager, relayEndpoint);
 
-            Debug.Log("[NetcodeWorldHelper] Client setup with Relay completed, connecting...");
+            Debug.Log($"[NetcodeWorldHelper] Client setup with Relay completed, connecting to {relayEndpoint}...");
             return true;
         }
 

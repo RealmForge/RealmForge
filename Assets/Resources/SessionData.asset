@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 13c6a5104a8b5bd4ebe5e5704a001379, type: 3}
+  m_Name: SessionData
+  m_EditorClassIdentifier: 
+  relayJoinCode: 
+  lobbyId: 
+  sessionId: 
+  isHost: 0
+  localPlayerId: 0
+  localPlayerName: 
+  sessionName: 
+  maxPlayers: 0
+  isPrivate: 0
+  gameMode: 
+  players: []
+  sessionState: 0
+  hasValidData: 0
