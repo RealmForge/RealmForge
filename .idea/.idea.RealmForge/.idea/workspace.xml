@@ -6,8 +6,12 @@
   <component name="ChangeListManager">
     <list default="true" id="0b82a9c4-9099-46bc-8b08-31f2081a5886" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.RealmForge/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.RealmForge/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Octree/OctreeManager.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Octree/OctreeManager.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Octree/OctreeManager.cs.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Octree/OctreeManager.cs.meta" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Octree/OctreeNodePool.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Octree/OctreeNodePool.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Octree/OctreeTest.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Octree/OctreeTest.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Octree/OctreeTest.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Octree/OctreeTest.cs.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Octree/PlayerController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Octree/PlayerController.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Scenes/octree.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/octree.unity" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -19,11 +23,12 @@
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="HighlightingSettingsPerFile">
-    <setting file="file://$PROJECT_DIR$/Assets/Octree/OctreeManager.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Octree/OctreeTest.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Octree/PlayerController.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Library/PackageCache/com.unity.entities@42c4e852ffb4/Unity.Entities/SystemState.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Library/PackageCache/com.unity.netcode@7906a2acb8d5/Runtime/Debug/NetDebug.cs" root0="SKIP_HIGHLIGHTING" />
   </component>
+  <component name="MetaFilesCheckinStateConfiguration" checkMetaFiles="true" />
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 5
 }</component>
@@ -106,13 +111,16 @@
       <workItem from="1765956321826" duration="1036000" />
       <workItem from="1766033482429" duration="5154000" />
       <workItem from="1766082340687" duration="725000" />
-      <workItem from="1766468022831" duration="7754000" />
+      <workItem from="1766468022831" duration="8536000" />
+      <workItem from="1766487570977" duration="5916000" />
+      <workItem from="1766551757051" duration="6464000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
+  <component name="UnityCheckinConfiguration" checkUnsavedScenes="true" />
   <component name="UnityProjectConfiguration" hasMinimizedUI="true" />
   <component name="UnityProjectDiscoverer">
     <option name="hasUnityReference" value="true" />
@@ -120,6 +128,17 @@
     <option name="unityProjectFolder" value="true" />
   </component>
   <component name="UnityUnitTestConfiguration" currentTestLauncher="Both" />
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
   <component name="VcsManagerConfiguration">
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
   </component>

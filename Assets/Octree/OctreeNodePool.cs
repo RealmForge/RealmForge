@@ -1,7 +1,11 @@
+// OctreeNodePool.cs
 using System;
+using System.Runtime.CompilerServices;
 using Unity.Collections;
 using Unity.Mathematics;
+using Unity.Burst;
 
+[BurstCompile]
 public struct OctreeNode
 {
     public int ParentIndex;
@@ -10,36 +14,21 @@ public struct OctreeNode
     public float3 Center;
     public float Size;
     
-    public int Child0, Child1, Child2, Child3;
-    public int Child4, Child5, Child6, Child7;
+    public FixedList64Bytes<int> Children;
     
-    public bool IsLeaf => Child0 == -1;
-    
-    public int GetChild(int i)
+    public bool IsLeaf
     {
-        return i switch
-        {
-            0 => Child0, 1 => Child1, 2 => Child2, 3 => Child3,
-            4 => Child4, 5 => Child5, 6 => Child6, 7 => Child7,
-            _ => -1
-        };
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Children[0] == -1;
     }
     
-    public void SetChild(int i, int index)
-    {
-        switch (i)
-        {
-            case 0: Child0 = index; break;
-            case 1: Child1 = index; break;
-            case 2: Child2 = index; break;
-            case 3: Child3 = index; break;
-            case 4: Child4 = index; break;
-            case 5: Child5 = index; break;
-            case 6: Child6 = index; break;
-            case 7: Child7 = index; break;
-        }
-    }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public int GetChild(int i) => Children[i];
     
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void SetChild(int i, int index) => Children[i] = index;
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void GetAABB(out float3 min, out float3 max)
     {
         float dx = ((ChildIndex & 1) == 0) ? Size : -Size;
@@ -54,79 +43,96 @@ public struct OctreeNode
     
     public static OctreeNode CreateEmpty()
     {
-        return new OctreeNode
+        var node = new OctreeNode
         {
             ParentIndex = -1,
             ChildIndex = 0,
             Depth = 0,
             Center = float3.zero,
             Size = 0,
-            Child0 = -1, Child1 = -1, Child2 = -1, Child3 = -1,
-            Child4 = -1, Child5 = -1, Child6 = -1, Child7 = -1
+            Children = new FixedList64Bytes<int>()
         };
+        
+        for (int i = 0; i < 8; i++)
+            node.Children.Add(-1);
+            
+        return node;
     }
 }
 
+[BurstCompile]
 public struct OctreeNodePool : IDisposable
 {
-    private NativeArray<OctreeNode> _nodes;
-    private NativeList<int> _freeList;
-    private NativeArray<bool> _isUsed;
+    public NativeArray<OctreeNode> Nodes;
+    public NativeArray<bool> IsUsedFlags;
+    private NativeArray<int> _freeStack;
+    private int _freeCount;
     
     public readonly int Capacity;
+    
+    public int UsedCount => Capacity - _freeCount;
+    public int FreeCount => _freeCount;
+    
     
     public OctreeNodePool(int capacity, Allocator allocator)
     {
         Capacity = capacity;
-        _nodes = new NativeArray<OctreeNode>(capacity, allocator);
-        _isUsed = new NativeArray<bool>(capacity, allocator);
-        _freeList = new NativeList<int>(capacity, allocator);
+        Nodes = new NativeArray<OctreeNode>(capacity, allocator);
+        IsUsedFlags = new NativeArray<bool>(capacity, allocator);
+        _freeStack = new NativeArray<int>(capacity, allocator);
         
-        for (int i = capacity - 1; i >= 0; i--)
+        _freeCount = capacity;
+        for (int i = 0; i < capacity; i++)
         {
-            _freeList.Add(i);
-            _isUsed[i] = false;
+            _freeStack[i] = capacity - 1 - i;
+            IsUsedFlags[i] = false;
         }
     }
     
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TryRent(out int index)
     {
-        if (_freeList.Length == 0)
+        if (_freeCount == 0)
         {
             index = -1;
             return false;
         }
         
-        int last = _freeList.Length - 1;
-        index = _freeList[last];
-        _freeList.RemoveAt(last);
-        _isUsed[index] = true;
-        _nodes[index] = OctreeNode.CreateEmpty();
+        index = _freeStack[--_freeCount];
+        IsUsedFlags[index] = true;
+        Nodes[index] = OctreeNode.CreateEmpty();
         return true;
     }
     
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Return(int index)
     {
         if (index < 0 || index >= Capacity) return;
-        if (!_isUsed[index]) return;
-        _isUsed[index] = false;
-        _freeList.Add(index);
+        if (!IsUsedFlags[index]) return;
+        
+        IsUsedFlags[index] = false;
+        _freeStack[_freeCount++] = index;
     }
     
-    public OctreeNode Get(int index) => _nodes[index];
-    public void Set(int index, OctreeNode node) => _nodes[index] = node;
-    public bool IsUsed(int index) => _isUsed[index];
-    public int UsedCount => Capacity - _freeList.Length;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public OctreeNode Get(int index) => Nodes[index];
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Set(int index, OctreeNode node) => Nodes[index] = node;
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool IsUsed(int index) => IsUsedFlags[index];
 
+    [BurstCompile]
     public bool Subdivide(int parentIndex)
     {
-        var parent = _nodes[parentIndex];
-        if (!parent.IsLeaf || _freeList.Length < 8) return false;
+        var parent = Nodes[parentIndex];
+        if (!parent.IsLeaf || _freeCount < 8) return false;
 
-        float childSize = parent.Size / 2f;
+        float childSize = parent.Size * 0.5f;
         
         parent.GetAABB(out float3 parentMin, out float3 parentMax);
-        float3 parentMid = (parentMin + parentMax) / 2f;
+        float3 parentMid = (parentMin + parentMax) * 0.5f;
 
         for (int i = 0; i < 8; i++)
         {
@@ -153,37 +159,56 @@ public struct OctreeNodePool : IDisposable
             child.Center = childCenter;
             child.Size = childSize;
         
-            _nodes[childIdx] = child;
+            Nodes[childIdx] = child;
         }
-        _nodes[parentIndex] = parent;
+        Nodes[parentIndex] = parent;
         return true;
     }
     
-    public bool Merge(int parentIndex)
+    [BurstCompile]
+    public bool Merge(int parentIndex, ref NativeArray<int> workStack)
     {
-        var parent = _nodes[parentIndex];
+        var parent = Nodes[parentIndex];
         if (parent.IsLeaf) return false;
+        
+        int stackCount = 0;
         
         for (int i = 0; i < 8; i++)
         {
             int childIdx = parent.GetChild(i);
-            if (!_nodes[childIdx].IsLeaf) Merge(childIdx);
-            Return(childIdx);
+            if (childIdx != -1)
+                workStack[stackCount++] = childIdx;
         }
         
-        parent.Child0 = -1; parent.Child1 = -1;
-        parent.Child2 = -1; parent.Child3 = -1;
-        parent.Child4 = -1; parent.Child5 = -1;
-        parent.Child6 = -1; parent.Child7 = -1;
+        while (stackCount > 0)
+        {
+            int currentIdx = workStack[--stackCount];
+            var current = Nodes[currentIdx];
+            
+            if (!current.IsLeaf)
+            {
+                for (int i = 0; i < 8; i++)
+                {
+                    int childIdx = current.GetChild(i);
+                    if (childIdx != -1)
+                        workStack[stackCount++] = childIdx;
+                }
+            }
+            
+            Return(currentIdx);
+        }
         
-        _nodes[parentIndex] = parent;
+        for (int i = 0; i < 8; i++)
+            parent.SetChild(i, -1);
+        
+        Nodes[parentIndex] = parent;
         return true;
     }
     
     public void Dispose()
     {
-        if (_nodes.IsCreated) _nodes.Dispose();
-        if (_isUsed.IsCreated) _isUsed.Dispose();
-        if (_freeList.IsCreated) _freeList.Dispose();
+        if (Nodes.IsCreated) Nodes.Dispose();
+        if (IsUsedFlags.IsCreated) IsUsedFlags.Dispose();
+        if (_freeStack.IsCreated) _freeStack.Dispose();
     }
 }

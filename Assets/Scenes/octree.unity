@@ -164,12 +164,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rootSize: 100
+  baseSubdivisionDepth: 3
+  activeTrackingDepth: 3
+  neighborPreloadDepth: 5
+  maxDepth: 6
+  lodDistances:
+  - 25
+  - 50
+  - 100
+  - 200
+  lodUpdateInterval: 3
+  positionChangeThreshold: 2
+  maxSubdivisionsPerFrame: 50
   target: {fileID: 1903933679}
-  cornerMarkerRatio: 0.15
-  showCornerMarkers: 1
-  showWireframe: 1
-  showFilledCubes: 0
-  showCenterCube: 1
 --- !u!1 &430097624
 GameObject:
   m_ObjectHideFlags: 0
@@ -378,7 +385,7 @@ Transform:
   m_GameObject: {fileID: 1000568314}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: -10}
+  m_LocalPosition: {x: -75, y: 164, z: -10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -553,6 +560,55 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2109436101
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2109436102}
+  - component: {fileID: 2109436103}
+  m_Layer: 0
+  m_Name: GLRenderer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &2109436102
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2109436101}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -124.49527, y: 87.45984, z: 206.95747}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2109436103
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2109436101}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53403becd8b535743a65d5f80e30a704, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  showWireframe: 1
+  showActiveCellBounds: 1
+  showRootBounds: 1
+  showCornerMarkers: 0
+  cornerMarkerRatio: 0.15
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -561,3 +617,4 @@ SceneRoots:
   - {fileID: 430097626}
   - {fileID: 326689311}
   - {fileID: 1903933679}
+  - {fileID: 2109436102}
