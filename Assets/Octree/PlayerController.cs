@@ -3,7 +3,7 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    [Header("이동 설정")]
+    [Header("이동")]
     public float moveSpeed = 50f;
     public float sprintMultiplier = 3f;
 
@@ -26,35 +26,33 @@ public class PlayerController : MonoBehaviour
 
     void OnGUI()
     {
-        var style = new GUIStyle(GUI.skin.label) { fontSize = 14, richText = true };
+        var style = new GUIStyle(GUI.skin.label) { fontSize = 16, richText = true };
         style.normal.textColor = Color.white;
         
-        GUILayout.BeginArea(new Rect(10, 10, 600, 400));
-        GUILayout.Label($"캐릭터 위치: {transform.position:F1}", style);
+        GUILayout.BeginArea(new Rect(10, 10, 350, 350));
+        
+        GUILayout.Label($"<b>위치:</b> {transform.position:F0}", style);
         
         if (OctreeManager.Instance != null)
         {
             var mgr = OctreeManager.Instance;
-            bool insideActiveCell = mgr.IsInsideActiveCell(transform.position);
-            bool insideRoot = mgr.IsInsideRoot(transform.position);
             
-            GUILayout.Space(5);
-            GUILayout.Label("<b>== 깊이 구성 ==</b>", style);
-            GUILayout.Label($"기본: <color=gray>Depth {mgr.baseSubdivisionDepth}</color>", style);
-            GUILayout.Label($"활성 셀: <color=yellow>Depth {mgr.activeTrackingDepth}</color>", style);
-            GUILayout.Label($"이웃: <color=cyan>Depth {mgr.neighborPreloadDepth}</color>", style);
-            GUILayout.Label($"최대 LOD: <color=lime>Depth {mgr.maxDepth}</color>", style);
+            GUILayout.Space(10);
+            GUILayout.Label($"<b>노드 수:</b> <color=yellow>{mgr.UsedNodeCount}</color>", style);
+            GUILayout.Label($"<b>여유 노드:</b> {mgr.FreeNodeCount}", style);
+            GUILayout.Label($"<b>플레이어 깊이:</b> <color=cyan>{mgr.PlayerNodeDepth}</color> / {mgr.maxDepth}", style);
+            GUILayout.Label($"<b>이번 프레임 분할:</b> {mgr.LastSubdivisions}", style);
+            GUILayout.Label($"<b>루트 안:</b> {(mgr.IsInsideRoot(transform.position) ? "<color=lime>O</color>" : "<color=red>X</color>")}", style);
             
-            GUILayout.Space(5);
-            GUILayout.Label("<b>== 상태 ==</b>", style);
-            GUILayout.Label($"활성 셀 크기: {mgr.ActiveCellSize:F1}", style);
-            GUILayout.Label($"활성 셀 안: {(insideActiveCell ? "<color=lime>예</color>" : "<color=yellow>부분 재렌더링</color>")}", style);
-            GUILayout.Label($"루트 안: {(insideRoot ? "<color=lime>예</color>" : "<color=red>전체 재구성</color>")}", style);
-            GUILayout.Label($"사용 노드: {mgr.UsedNodeCount}", style);
+            GUILayout.Space(10);
+            GUILayout.Label("<b>-- 색상 --</b>", style);
+            GUILayout.Label("<color=#808080>■</color>0 <color=#FF3333>■</color>1 <color=#FF9933>■</color>2 <color=#FFFF33>■</color>3", style);
+            GUILayout.Label("<color=#33FF33>■</color>4 <color=#33FFFF>■</color>5 <color=#3366FF>■</color>6 <color=#9933FF>■</color>7 <color=#FF33FF>■</color>8", style);
         }
         
         GUILayout.Space(10);
-        GUILayout.Label("WASD: 이동 | QE: 상승/하강 | Shift: 빠르게", style);
+        GUILayout.Label("WASD QE Shift", style);
+        
         GUILayout.EndArea();
     }
 }

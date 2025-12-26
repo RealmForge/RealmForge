@@ -19,7 +19,7 @@ public struct OctreeNode
     public bool IsLeaf
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Children[0] == -1;
+        get => Children.Length == 0 || Children[0] == -1;
     }
     
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -29,16 +29,18 @@ public struct OctreeNode
     public void SetChild(int i, int index) => Children[i] = index;
     
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void SetAllChildren(int value)
+    {
+        for (int i = 0; i < 8; i++)
+            Children[i] = value;
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void GetAABB(out float3 min, out float3 max)
     {
-        float dx = ((ChildIndex & 1) == 0) ? Size : -Size;
-        float dy = ((ChildIndex & 2) == 0) ? Size : -Size;
-        float dz = ((ChildIndex & 4) == 0) ? Size : -Size;
-        
-        float3 end = Center + new float3(dx, dy, dz);
-        
-        min = math.min(Center, end);
-        max = math.max(Center, end);
+        float halfSize = Size * 0.5f;
+        min = Center - new float3(halfSize);
+        max = Center + new float3(halfSize);
     }
     
     public static OctreeNode CreateEmpty()
@@ -65,26 +67,26 @@ public struct OctreeNodePool : IDisposable
 {
     public NativeArray<OctreeNode> Nodes;
     public NativeArray<bool> IsUsedFlags;
-    private NativeArray<int> _freeStack;
-    private int _freeCount;
+    public NativeArray<int> FreeStack;
+    public NativeArray<int> FreeCountArray;
     
     public readonly int Capacity;
     
-    public int UsedCount => Capacity - _freeCount;
-    public int FreeCount => _freeCount;
-    
+    public int UsedCount => Capacity - FreeCountArray[0];
+    public int FreeCount => FreeCountArray[0];
     
     public OctreeNodePool(int capacity, Allocator allocator)
     {
         Capacity = capacity;
         Nodes = new NativeArray<OctreeNode>(capacity, allocator);
         IsUsedFlags = new NativeArray<bool>(capacity, allocator);
-        _freeStack = new NativeArray<int>(capacity, allocator);
+        FreeStack = new NativeArray<int>(capacity, allocator);
+        FreeCountArray = new NativeArray<int>(1, allocator);
         
-        _freeCount = capacity;
+        FreeCountArray[0] = capacity;
         for (int i = 0; i < capacity; i++)
         {
-            _freeStack[i] = capacity - 1 - i;
+            FreeStack[i] = capacity - 1 - i;
             IsUsedFlags[i] = false;
         }
     }
@@ -92,13 +94,15 @@ public struct OctreeNodePool : IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TryRent(out int index)
     {
-        if (_freeCount == 0)
+        int freeCount = FreeCountArray[0];
+        if (freeCount == 0)
         {
             index = -1;
             return false;
         }
         
-        index = _freeStack[--_freeCount];
+        index = FreeStack[--freeCount];
+        FreeCountArray[0] = freeCount;
         IsUsedFlags[index] = true;
         Nodes[index] = OctreeNode.CreateEmpty();
         return true;
@@ -111,7 +115,9 @@ public struct OctreeNodePool : IDisposable
         if (!IsUsedFlags[index]) return;
         
         IsUsedFlags[index] = false;
-        _freeStack[_freeCount++] = index;
+        int freeCount = FreeCountArray[0];
+        FreeStack[freeCount] = index;
+        FreeCountArray[0] = freeCount + 1;
     }
     
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -123,34 +129,31 @@ public struct OctreeNodePool : IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IsUsed(int index) => IsUsedFlags[index];
 
-    [BurstCompile]
+    /// <summary>
+    /// 단일 노드 분할 (순차 처리용)
+    /// </summary>
     public bool Subdivide(int parentIndex)
     {
         var parent = Nodes[parentIndex];
-        if (!parent.IsLeaf || _freeCount < 8) return false;
+        int freeCount = FreeCountArray[0];
+        
+        if (!parent.IsLeaf || freeCount < 8) return false;
 
         float childSize = parent.Size * 0.5f;
-        
-        parent.GetAABB(out float3 parentMin, out float3 parentMax);
-        float3 parentMid = (parentMin + parentMax) * 0.5f;
+        float3 parentCenter = parent.Center;
+        float offset = childSize * 0.5f;
 
         for (int i = 0; i < 8; i++)
         {
-            if (!TryRent(out int childIdx)) return false;
+            int childIdx = FreeStack[--freeCount];
+            IsUsedFlags[childIdx] = true;
+            
             parent.SetChild(i, childIdx);
         
-            float3 childMin, childMax;
-            childMin.x = ((i & 1) == 0) ? parentMin.x : parentMid.x;
-            childMax.x = ((i & 1) == 0) ? parentMid.x : parentMax.x;
-            childMin.y = ((i & 2) == 0) ? parentMin.y : parentMid.y;
-            childMax.y = ((i & 2) == 0) ? parentMid.y : parentMax.y;
-            childMin.z = ((i & 4) == 0) ? parentMin.z : parentMid.z;
-            childMax.z = ((i & 4) == 0) ? parentMid.z : parentMax.z;
-            
             float3 childCenter;
-            childCenter.x = ((i & 1) == 0) ? childMin.x : childMax.x;
-            childCenter.y = ((i & 2) == 0) ? childMin.y : childMax.y;
-            childCenter.z = ((i & 4) == 0) ? childMin.z : childMax.z;
+            childCenter.x = parentCenter.x + (((i & 1) == 0) ? -offset : offset);
+            childCenter.y = parentCenter.y + (((i & 2) == 0) ? -offset : offset);
+            childCenter.z = parentCenter.z + (((i & 4) == 0) ? -offset : offset);
         
             var child = OctreeNode.CreateEmpty();
             child.ParentIndex = parentIndex;
@@ -161,11 +164,15 @@ public struct OctreeNodePool : IDisposable
         
             Nodes[childIdx] = child;
         }
+        
+        FreeCountArray[0] = freeCount;
         Nodes[parentIndex] = parent;
         return true;
     }
     
-    [BurstCompile]
+    /// <summary>
+    /// 서브트리 전체 병합 (순차 처리용)
+    /// </summary>
     public bool Merge(int parentIndex, ref NativeArray<int> workStack)
     {
         var parent = Nodes[parentIndex];
@@ -198,9 +205,7 @@ public struct OctreeNodePool : IDisposable
             Return(currentIdx);
         }
         
-        for (int i = 0; i < 8; i++)
-            parent.SetChild(i, -1);
-        
+        parent.SetAllChildren(-1);
         Nodes[parentIndex] = parent;
         return true;
     }
@@ -209,6 +214,7 @@ public struct OctreeNodePool : IDisposable
     {
         if (Nodes.IsCreated) Nodes.Dispose();
         if (IsUsedFlags.IsCreated) IsUsedFlags.Dispose();
-        if (_freeStack.IsCreated) _freeStack.Dispose();
+        if (FreeStack.IsCreated) FreeStack.Dispose();
+        if (FreeCountArray.IsCreated) FreeCountArray.Dispose();
     }
 }

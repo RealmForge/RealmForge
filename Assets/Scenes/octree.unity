@@ -164,19 +164,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rootSize: 100
-  baseSubdivisionDepth: 3
-  activeTrackingDepth: 3
-  neighborPreloadDepth: 5
-  maxDepth: 6
-  lodDistances:
-  - 25
-  - 50
-  - 100
-  - 200
-  lodUpdateInterval: 3
-  positionChangeThreshold: 2
-  maxSubdivisionsPerFrame: 50
+  maxDepth: 8
+  thetaThreshold: 1
+  lodUpdateInterval: 5
+  maxSubdivisionsPerFrame: 30000
   target: {fileID: 1903933679}
+  baseSubdivisionDepth: 3
+  activeTrackingDepth: 4
+  neighborPreloadDepth: 5
 --- !u!1 &430097624
 GameObject:
   m_ObjectHideFlags: 0
@@ -384,13 +379,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1000568314}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -75, y: 164, z: -10}
+  m_LocalRotation: {x: 0.2588191, y: 0, z: 0, w: 0.9659258}
+  m_LocalPosition: {x: 0, y: 300, z: -400}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 30, y: 0, z: 0}
 --- !u!114 &1000568318
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -576,7 +571,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &2109436102
 Transform:
   m_ObjectHideFlags: 0
@@ -605,10 +600,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   showWireframe: 1
-  showActiveCellBounds: 1
   showRootBounds: 1
-  showCornerMarkers: 0
-  cornerMarkerRatio: 0.15
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
