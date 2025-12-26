@@ -28,14 +28,13 @@ public partial struct NoiseGenerationSystem : ISystem
         {
             var jobResult = m_NoiseJobResults[i];
             if (jobResult.NoiseValues.IsCreated)
-            {
                 jobResult.NoiseValues.Dispose();
-            }
+            if (jobResult.NoiseLayers.IsCreated)
+                jobResult.NoiseLayers.Dispose();
         }
         m_NoiseJobResults.Dispose();
     }
 
-    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         var ecb = new EntityCommandBuffer(Allocator.Temp);
@@ -61,6 +60,8 @@ public partial struct NoiseGenerationSystem : ISystem
                 var layer = layerBuffer[i];
                 noiseLayers[i] = new NoiseLayerData
                 {
+                    LayerType = layer.LayerType,
+                    BlendMode = layer.BlendMode,
                     Scale = layer.Scale,
                     Octaves = layer.Octaves,
                     Persistence = layer.Persistence,
@@ -78,7 +79,7 @@ public partial struct NoiseGenerationSystem : ISystem
                 ChunkPosition = chunkData.ValueRO.ChunkPosition,
                 PlanetCenter = planetData.ValueRO.Center,
                 PlanetRadius = planetData.ValueRO.Radius,
-                NoiseStrength = planetData.ValueRO.NoiseStrength,
+                CoreRadius = planetData.ValueRO.CoreRadius,
                 NoiseLayers = noiseLayers,
                 LayerCount = layerCount,
                 Seed = 0,  // TODO: PlanetData에 Seed 필드 추가 고려
@@ -91,7 +92,8 @@ public partial struct NoiseGenerationSystem : ISystem
             {
                 JobHandle = jobHandle,
                 Entity = entity,
-                NoiseValues = noiseValues
+                NoiseValues = noiseValues,
+                NoiseLayers = noiseLayers
             });
 
             ecb.SetComponentEnabled<NoiseGenerationRequest>(entity, false);
@@ -126,4 +128,5 @@ public struct NoiseJobResult
     public JobHandle JobHandle;
     public Entity Entity;
     public NativeArray<float> NoiseValues;
+    public NativeArray<NoiseLayerData> NoiseLayers;  // 메모리 누수 방지용
 }

@@ -18,7 +18,7 @@ public partial class MeshApplySystem : SystemBase
 
     protected override void OnCreate()
     {
-        RequireForUpdate<NoiseSettings>();
+        RequireForUpdate<ChunkData>();
         meshGenerationSystemHandle = World.GetExistingSystem<MeshGenerationSystem>();
     }
 

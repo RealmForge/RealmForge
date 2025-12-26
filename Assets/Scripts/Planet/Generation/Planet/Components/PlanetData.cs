@@ -8,7 +8,7 @@ public struct PlanetData : IComponentData
 {
     public float3 Center;       // Planet center position
     public float Radius;        // Planet base radius
-    public float NoiseStrength; // Overall noise strength multiplier
+    public float CoreRadius;    // Core radius (no caves inside)
 }
 
 /// <summary>

@@ -80,7 +80,7 @@ public struct MarchingCubesJob : IJob
     [ReadOnly] public NativeArray<int> EdgeTable;
     [ReadOnly] public NativeArray<int> TriTable;
     public int ChunkSize;
-    public float IsoLevel;      // 표면 threshold (default: 0.5)
+    public float Threshold;     // 표면 threshold (default: 0.5)
     public float VoxelSize;     // voxel 크기 (default: 1.0)
 
     public NativeList<float3> Vertices;
@@ -105,7 +105,7 @@ public struct MeshJobResult
 
 ## Configuration
 
-### IsoLevel
+### Threshold
 - 0.0 ~ 1.0 범위
 - 값이 낮을수록 더 많은 표면 생성
 - 현재 기본값: 0.5
@@ -154,8 +154,8 @@ Chunk(0,0,0)의 x=16 == Chunk(1,0,0)의 x=0 (Perlin noise deterministic)
 - LOD 레벨별 VoxelSize: 1.0f, 2.0f, 4.0f, 8.0f (2^n)
 - 데이터 개수는 동일 (17x17x17), Scale만 변경
 
-### 4. IsoLevel 설정 (Planned)
-- 현재: IsoLevel = 0.5f 하드코딩
+### 4. Threshold 설정 (Planned)
+- 현재: Threshold = 0.5f 하드코딩
 - 개선: NoiseSettings 또는 별도 컴포넌트에서 설정 가능하게
 - 값이 낮을수록 더 많은 표면 생성
 

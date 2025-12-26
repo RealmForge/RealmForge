@@ -12,7 +12,7 @@ public struct MarchingCubesJob : IJob
     [ReadOnly] public NativeArray<int> TriTable;
     public int ChunkSize;
     public int SampleSize;  // ChunkSize + 1 (NoiseData is SampleSize^3)
-    public float IsoLevel;
+    public float Threshold;
     public float VoxelSize;
 
     // Output
@@ -92,10 +92,11 @@ public struct MarchingCubesJob : IJob
         }
 
         // Calculate cube index based on which corners are inside the surface
+        // density > Threshold means inside (solid), density < Threshold means outside (air)
         int cubeIndex = 0;
         for (int i = 0; i < 8; i++)
         {
-            if (cornerDensities[i] < IsoLevel)
+            if (cornerDensities[i] > Threshold)
             {
                 cubeIndex |= (1 << i);
             }
@@ -170,11 +171,11 @@ public struct MarchingCubesJob : IJob
 
     private float3 InterpolateVertex(float3 p0, float3 p1, float d0, float d1)
     {
-        if (math.abs(IsoLevel - d0) < 0.00001f) return p0;
-        if (math.abs(IsoLevel - d1) < 0.00001f) return p1;
+        if (math.abs(Threshold - d0) < 0.00001f) return p0;
+        if (math.abs(Threshold - d1) < 0.00001f) return p1;
         if (math.abs(d0 - d1) < 0.00001f) return p0;
 
-        float t = (IsoLevel - d0) / (d1 - d0);
+        float t = (Threshold - d0) / (d1 - d0);
         return math.lerp(p0, p1, t);
     }
 }

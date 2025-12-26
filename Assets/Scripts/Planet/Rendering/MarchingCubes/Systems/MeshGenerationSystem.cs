@@ -20,7 +20,7 @@ public partial struct MeshGenerationSystem : ISystem
 
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<NoiseSettings>();
+        state.RequireForUpdate<ChunkData>();
 
         MeshJobResults = new NativeList<MeshJobResult>(Allocator.Persistent);
 
@@ -48,7 +48,6 @@ public partial struct MeshGenerationSystem : ISystem
         if (triTable.IsCreated) triTable.Dispose();
     }
 
-    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         var ecb = new EntityCommandBuffer(Allocator.Temp);
@@ -89,7 +88,7 @@ public partial struct MeshGenerationSystem : ISystem
                 TriTable = triTable,
                 ChunkSize = chunkSize,
                 SampleSize = sampleSize,
-                IsoLevel = 0.5f,
+                Threshold = 0.5f,
                 VoxelSize = 1.0f,
                 Vertices = vertices,
                 Normals = normals,

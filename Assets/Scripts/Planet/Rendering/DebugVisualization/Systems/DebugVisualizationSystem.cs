@@ -55,7 +55,9 @@ public partial struct DebugVisualizationSystem : ISystem
                     {
                         float value = buffer[x + yOffset + zOffset].Value;
 
-                        if (settings.UseThreshold && value >= settings.Threshold)
+                        // value > Threshold = solid (내부), value <= Threshold = air (외부)
+                        // solid만 표시
+                        if (settings.UseThreshold && value <= settings.Threshold)
                             continue;
 
                         float3 worldPos = new float3(
