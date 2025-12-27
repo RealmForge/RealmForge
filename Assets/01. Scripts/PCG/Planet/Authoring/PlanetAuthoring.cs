@@ -14,14 +14,12 @@ public class PlanetAuthoring : MonoBehaviour
     [Header("Layers")]
     public NoiseLayerSettings[] noiseLayers = new NoiseLayerSettings[]
     {
-        // Layer 0: Sphere (기본 형태)
         new NoiseLayerSettings
         {
             layerType = NoiseLayerType.Sphere,
             blendMode = NoiseBlendMode.Subtract,
             strength = 1f
         },
-        // Layer 1: Surface Noise
         new NoiseLayerSettings
         {
             layerType = NoiseLayerType.Surface,
@@ -38,72 +36,53 @@ public class PlanetAuthoring : MonoBehaviour
 
     [Header("Chunk Settings")]
     public int chunkSize = 16;
-    public int3 startChunkGrid = new int3(-2, -2, -2);
-    public int3 endChunkGrid = new int3(1, 1, 1);
 
     class Baker : Baker<PlanetAuthoring>
     {
         public override void Bake(PlanetAuthoring authoring)
         {
-            for (int x = authoring.startChunkGrid.x; x < authoring.endChunkGrid.x; x++)
+            // ★ 변경: 단일 행성 엔티티만 생성 (청크는 런타임에 옥트리 기반 생성)
+            var entity = GetEntity(TransformUsageFlags.None);
+
+            AddComponent(entity, new PlanetData
             {
-                for (int y = authoring.startChunkGrid.y; y < authoring.endChunkGrid.y; y++)
+                Center = authoring.center,
+                Radius = authoring.radius,
+                CoreRadius = authoring.coreRadius
+            });
+
+            AddComponent(entity, new PlanetChunkSettings
+            {
+                ChunkSize = authoring.chunkSize
+            });
+
+            var layerBuffer = AddBuffer<NoiseLayerBuffer>(entity);
+            foreach (var layer in authoring.noiseLayers)
+            {
+                layerBuffer.Add(new NoiseLayerBuffer
                 {
-                    for (int z = authoring.startChunkGrid.z; z < authoring.endChunkGrid.z; z++)
-                    {
-                        var entity = CreateAdditionalEntity(TransformUsageFlags.None);
-
-                        // Chunk data
-                        AddComponent(entity, new ChunkData
-                        {
-                            ChunkPosition = new int3(x, y, z),
-                            ChunkSize = authoring.chunkSize
-                        });
-
-                        // Planet data
-                        AddComponent(entity, new PlanetData
-                        {
-                            Center = authoring.center,
-                            Radius = authoring.radius,
-                            CoreRadius = authoring.coreRadius
-                        });
-
-                        // Noise layers buffer
-                        var layerBuffer = AddBuffer<NoiseLayerBuffer>(entity);
-                        foreach (var layer in authoring.noiseLayers)
-                        {
-                            layerBuffer.Add(new NoiseLayerBuffer
-                            {
-                                LayerType = layer.layerType,
-                                BlendMode = layer.blendMode,
-                                Scale = layer.scale,
-                                Octaves = layer.octaves,
-                                Persistence = layer.persistence,
-                                Lacunarity = layer.lacunarity,
-                                Strength = layer.strength,
-                                Offset = layer.offset,
-                                UseFirstLayerAsMask = layer.useFirstLayerAsMask
-                            });
-                        }
-
-                        // Noise generation request (Enabled = start immediately)
-                        AddComponent(entity, new NoiseGenerationRequest());
-
-                        // Mesh generation request (Disabled = not ready yet)
-                        AddComponent(entity, new MeshGenerationRequest());
-                        SetComponentEnabled<MeshGenerationRequest>(entity, false);
-
-                        // Debug visualization ready (Disabled = not ready yet)
-                        AddComponent(entity, new NoiseVisualizationReady());
-                        SetComponentEnabled<NoiseVisualizationReady>(entity, false);
-
-                        // Noise data buffer
-                        AddBuffer<NoiseDataBuffer>(entity);
-                    }
-                }
+                    LayerType = layer.layerType,
+                    BlendMode = layer.blendMode,
+                    Scale = layer.scale,
+                    Octaves = layer.octaves,
+                    Persistence = layer.persistence,
+                    Lacunarity = layer.lacunarity,
+                    Strength = layer.strength,
+                    Offset = layer.offset,
+                    UseFirstLayerAsMask = layer.useFirstLayerAsMask
+                });
             }
+
+            AddComponent<PlanetTag>(entity);
         }
     }
+}
+
+public struct PlanetTag : IComponentData { }
+
+public struct PlanetChunkSettings : IComponentData
+{
+    public int ChunkSize;
 }
 
 [Serializable]
