@@ -5,7 +5,7 @@ using Unity.Jobs;
 
 /// <summary>
 /// Planet 노이즈 생성 시스템.
-/// PlanetData + NoiseLayerBuffer를 기반으로 Sphere SDF + 다중 노이즈 레이어 합성.
+/// ★ 옥트리 기반: ChunkData.Min, ChunkData.Size 사용
 /// </summary>
 [BurstCompile]
 public partial struct NoiseGenerationSystem : ISystem
@@ -40,7 +40,6 @@ public partial struct NoiseGenerationSystem : ISystem
         var ecb = new EntityCommandBuffer(Allocator.Temp);
         var newJobs = new NativeList<NoiseJobResult>(Allocator.Temp);
 
-        // PlanetData + NoiseLayerBuffer를 가진 엔티티 처리
         foreach (var (chunkData, planetData, layerBuffer, entity) in
             SystemAPI.Query<RefRO<ChunkData>, RefRO<PlanetData>, DynamicBuffer<NoiseLayerBuffer>>()
                 .WithAll<NoiseGenerationRequest>()
@@ -52,7 +51,6 @@ public partial struct NoiseGenerationSystem : ISystem
 
             var noiseValues = new NativeArray<float>(totalSize, Allocator.TempJob);
 
-            // NoiseLayerBuffer → NativeArray<NoiseLayerData> 변환
             int layerCount = layerBuffer.Length;
             var noiseLayers = new NativeArray<NoiseLayerData>(layerCount, Allocator.TempJob);
             for (int i = 0; i < layerCount; i++)
@@ -72,17 +70,24 @@ public partial struct NoiseGenerationSystem : ISystem
                 };
             }
 
+            // ★ 옥트리 기반 VoxelSize 계산
+            float voxelSize = chunkData.ValueRO.Size / chunkSize;
+
             var job = new PlanetNoiseJob
             {
                 ChunkSize = chunkSize,
                 SampleSize = sampleSize,
-                ChunkPosition = chunkData.ValueRO.ChunkPosition,
+                
+                // ★ 변경: 옥트리 월드 좌표
+                ChunkMin = chunkData.ValueRO.Min,
+                VoxelSize = voxelSize,
+                
                 PlanetCenter = planetData.ValueRO.Center,
                 PlanetRadius = planetData.ValueRO.Radius,
                 CoreRadius = planetData.ValueRO.CoreRadius,
                 NoiseLayers = noiseLayers,
                 LayerCount = layerCount,
-                Seed = 0,  // TODO: PlanetData에 Seed 필드 추가 고려
+                Seed = 0,
                 NoiseValues = noiseValues
             };
 
@@ -119,14 +124,10 @@ public partial struct NoiseGenerationSystem : ISystem
     }
 }
 
-/// <summary>
-/// Job 완료 후 처리를 위한 정보를 담는 구조체
-/// PerlinNoiseJob, PlanetNoiseJob 등 다양한 Noise Job에서 공통 사용
-/// </summary>
 public struct NoiseJobResult
 {
     public JobHandle JobHandle;
     public Entity Entity;
     public NativeArray<float> NoiseValues;
-    public NativeArray<NoiseLayerData> NoiseLayers;  // 메모리 누수 방지용
+    public NativeArray<NoiseLayerData> NoiseLayers;
 }

@@ -3,24 +3,27 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 
+/// <summary>
+/// ★ 옥트리 기반: ChunkMin으로 월드 좌표 오프셋
+/// </summary>
 [BurstCompile]
 public struct MarchingCubesJob : IJob
 {
-    // Input
     [ReadOnly] public NativeArray<float> NoiseData;
     [ReadOnly] public NativeArray<int> EdgeTable;
     [ReadOnly] public NativeArray<int> TriTable;
     public int ChunkSize;
-    public int SampleSize;  // ChunkSize + 1 (NoiseData is SampleSize^3)
+    public int SampleSize;
     public float Threshold;
     public float VoxelSize;
+    
+    // ★ 추가
+    public float3 ChunkMin;
 
-    // Output
     public NativeList<float3> Vertices;
     public NativeList<float3> Normals;
     public NativeList<int> Indices;
 
-    // Corner offset getter (Burst-compatible)
     private static int3 GetCornerOffset(int index)
     {
         switch (index)
@@ -37,7 +40,6 @@ public struct MarchingCubesJob : IJob
         }
     }
 
-    // Edge to corner mapping getter (Burst-compatible)
     private static int2 GetEdgeCorners(int edgeIndex)
     {
         switch (edgeIndex)
@@ -60,10 +62,8 @@ public struct MarchingCubesJob : IJob
 
     public void Execute()
     {
-        // Temporary array for edge vertices (12 edges per cube)
         var edgeVertices = new NativeArray<float3>(12, Allocator.Temp);
 
-        // Iterate through all cubes (ChunkSize cubes, using SampleSize noise data)
         for (int z = 0; z < ChunkSize; z++)
         {
             for (int y = 0; y < ChunkSize; y++)
@@ -80,7 +80,6 @@ public struct MarchingCubesJob : IJob
 
     private void ProcessCube(int x, int y, int z, ref NativeArray<float3> edgeVertices)
     {
-        // Get density values at 8 corners
         var cornerDensities = new NativeArray<float>(8, Allocator.Temp);
         var cornerPositions = new NativeArray<float3>(8, Allocator.Temp);
 
@@ -88,11 +87,11 @@ public struct MarchingCubesJob : IJob
         {
             int3 corner = new int3(x, y, z) + GetCornerOffset(i);
             cornerDensities[i] = GetDensity(corner.x, corner.y, corner.z);
-            cornerPositions[i] = new float3(corner.x, corner.y, corner.z) * VoxelSize;
+            
+            // ★ 변경: ChunkMin 오프셋 추가
+            cornerPositions[i] = ChunkMin + new float3(corner.x, corner.y, corner.z) * VoxelSize;
         }
 
-        // Calculate cube index based on which corners are inside the surface
-        // density > Threshold means inside (solid), density < Threshold means outside (air)
         int cubeIndex = 0;
         for (int i = 0; i < 8; i++)
         {
@@ -102,7 +101,6 @@ public struct MarchingCubesJob : IJob
             }
         }
 
-        // Skip if cube is entirely inside or outside
         if (EdgeTable[cubeIndex] == 0)
         {
             cornerDensities.Dispose();
@@ -110,7 +108,6 @@ public struct MarchingCubesJob : IJob
             return;
         }
 
-        // Find vertices on edges
         int edgeFlags = EdgeTable[cubeIndex];
         for (int i = 0; i < 12; i++)
         {
@@ -123,7 +120,6 @@ public struct MarchingCubesJob : IJob
             }
         }
 
-        // Create triangles
         int tableIndex = cubeIndex * 16;
         for (int i = 0; TriTable[tableIndex + i] != -1; i += 3)
         {
@@ -135,10 +131,8 @@ public struct MarchingCubesJob : IJob
             float3 v1 = edgeVertices[e1];
             float3 v2 = edgeVertices[e2];
 
-            // Calculate normal
             float3 normal = math.normalize(math.cross(v1 - v0, v2 - v0));
 
-            // Add triangle (with correct winding order)
             int baseIndex = Vertices.Length;
 
             Vertices.Add(v0);
@@ -160,7 +154,6 @@ public struct MarchingCubesJob : IJob
 
     private float GetDensity(int x, int y, int z)
     {
-        // Clamp to SampleSize bounds (0 to ChunkSize inclusive)
         x = math.clamp(x, 0, SampleSize - 1);
         y = math.clamp(y, 0, SampleSize - 1);
         z = math.clamp(z, 0, SampleSize - 1);
