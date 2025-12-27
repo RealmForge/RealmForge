@@ -4,6 +4,7 @@ using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
+using Unity.Mathematics;
 
 namespace RealmForge.Game.UI
 {
@@ -56,6 +57,7 @@ namespace RealmForge.Game.UI
                     {
                         GameObject nameTag = Object.Instantiate(nameTagPrefab);
                         nameTag.name = $"NameTag_{nameComp.DisplayName}";
+                        nameTag.SetActive(true); // 프리팹이 비활성화되어 있으므로 활성화
 
                         // 텍스트 설정
                         Text textComponent = nameTag.GetComponentInChildren<Text>();
@@ -75,20 +77,48 @@ namespace RealmForge.Game.UI
                 Entity entity = kvp.Key;
                 GameObject nameTag = kvp.Value;
 
-                if (nameTag == null || !SystemAPI.Exists(entity))
+                if (nameTag == null)
+                {
+                    Debug.LogWarning($"[PlayerNameTagSystem] NameTag is null for entity");
                     continue;
+                }
 
+                if (!SystemAPI.Exists(entity))
+                {
+                    Debug.LogWarning($"[PlayerNameTagSystem] Entity no longer exists for nametag: {nameTag.name}");
+                    continue;
+                }
+
+                float3 position;
+                quaternion rotation;
+
+                // LocalTransform을 먼저 시도 (로컬 플레이어)
                 if (SystemAPI.HasComponent<LocalTransform>(entity))
                 {
-                    LocalTransform transform = SystemAPI.GetComponent<LocalTransform>(entity);
-
-                    // 플레이어의 로컬 "위" 방향으로 1.5 유닛 떨어진 위치에 배치
-                    Unity.Mathematics.float3 upDirection = Unity.Mathematics.math.mul(transform.Rotation, new Unity.Mathematics.float3(0, 1, 0));
-                    nameTag.transform.position = transform.Position + upDirection * 1.5f;
-
-                    // 플레이어의 회전을 따라가도록 설정 (중력 방향에 맞춰 회전)
-                    nameTag.transform.rotation = transform.Rotation;
+                    LocalTransform localTransform = SystemAPI.GetComponent<LocalTransform>(entity);
+                    position = localTransform.Position;
+                    rotation = localTransform.Rotation;
                 }
+                // LocalToWorld 시도 (원격 플레이어는 이쪽일 수 있음)
+                else if (SystemAPI.HasComponent<LocalToWorld>(entity))
+                {
+                    LocalToWorld localToWorld = SystemAPI.GetComponent<LocalToWorld>(entity);
+                    position = localToWorld.Position;
+                    rotation = localToWorld.Rotation;
+                    Debug.Log($"[PlayerNameTagSystem] Using LocalToWorld for {nameTag.name}");
+                }
+                else
+                {
+                    Debug.LogWarning($"[PlayerNameTagSystem] Entity has neither LocalTransform nor LocalToWorld: {nameTag.name}");
+                    continue;
+                }
+
+                // 플레이어의 로컬 "위" 방향으로 1.5 유닛 떨어진 위치에 배치
+                float3 upDirection = math.mul(rotation, new float3(0, 1, 0));
+                float3 newPosition = position + upDirection * 1.5f;
+
+                nameTag.transform.position = newPosition;
+                nameTag.transform.rotation = rotation;
             }
 
             // 삭제된 엔티티의 네임태그 제거
@@ -180,6 +210,11 @@ namespace RealmForge.Game.UI
             textRect.anchorMax = Vector2.one;
             textRect.sizeDelta = Vector2.zero;
             textRect.anchoredPosition = Vector2.zero;
+
+            // Hierarchy에서 숨기기 (템플릿이므로 Scene에 보일 필요 없음)
+            prefab.SetActive(false);
+            prefab.hideFlags = HideFlags.HideInHierarchy;
+            Object.DontDestroyOnLoad(prefab); // Scene 전환 시에도 유지
 
             nameTagPrefab = prefab;
             Debug.Log("[PlayerNameTagSystem] Created nametag prefab with improved settings");
