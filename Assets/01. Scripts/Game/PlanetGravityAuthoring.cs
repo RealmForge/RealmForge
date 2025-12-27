@@ -9,15 +9,15 @@ public struct PlanetComponent : IComponentData
     public float Gravity;
 }
 
-public class PlanetAuthoring : MonoBehaviour
+public class PlanetGravityAuthoring : MonoBehaviour
 {
     [Header("Planet Settings")]
     [Tooltip("행성 중력 강도")]
     public float gravity = 20f;
 
-    class Baker : Baker<PlanetAuthoring>
+    class Baker : Baker<PlanetGravityAuthoring>
     {
-        public override void Bake(PlanetAuthoring authoring)
+        public override void Bake(PlanetGravityAuthoring authoring)
         {
             // Physics를 위해 TransformUsageFlags에 Dynamic 사용
             var entity = GetEntity(TransformUsageFlags.Dynamic);
