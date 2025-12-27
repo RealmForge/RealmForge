@@ -4,6 +4,7 @@ using Unity.NetCode;
 using Unity.Transforms;
 using UnityEngine;
 using RealmForge.Session;
+using RealmForge.Game.UI;
 
 [WorldSystemFilter(WorldSystemFilterFlags.ServerSimulation)]
 partial struct GoInGameServerSystem : ISystem
@@ -74,6 +75,13 @@ partial struct GoInGameServerSystem : ISystem
             entityCommandBuffer.AddComponent(playerEntity, new GhostOwner
             {
                 NetworkId = networkId.Value,
+            });
+
+            // 플레이어 이름 컴포넌트 설정 (prefab에 이미 있으므로 SetComponent 사용)
+            entityCommandBuffer.SetComponent(playerEntity, new PlayerNameComponent
+            {
+                DisplayName = new Unity.Collections.FixedString64Bytes(playerName),
+                NetworkId = networkId.Value
             });
 
             Debug.Log($"[GoInGameServer] Spawned player entity for: {playerName}");

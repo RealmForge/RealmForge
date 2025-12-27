@@ -3,6 +3,7 @@ using Unity.Mathematics;
 using Unity.Physics;
 using Unity.Services.Matchmaker.Models;
 using UnityEngine;
+using RealmForge.Game.UI;
 
 public class PlayerAuthoring : MonoBehaviour
 {
@@ -51,7 +52,13 @@ public class PlayerAuthoring : MonoBehaviour
 
             // Angular 속도 감쇠 (회전 방지)
             AddComponent(entity, new PhysicsDamping { Linear = 0f, Angular = 1f });
-            
+
+            // 플레이어 이름 컴포넌트 (Ghost 동기화를 위해 prefab에 추가)
+            AddComponent(entity, new PlayerNameComponent
+            {
+                DisplayName = new Unity.Collections.FixedString64Bytes("Unknown"),
+                NetworkId = 0
+            });
         }
     }
 }
