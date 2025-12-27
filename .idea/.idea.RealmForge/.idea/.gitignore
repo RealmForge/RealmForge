@@ -2,9 +2,9 @@
 /shelf/
 /workspace.xml
 # Rider ignored files
-/projectSettingsUpdater.xml
 /modules.xml
 /contentModel.xml
+/projectSettingsUpdater.xml
 /.idea.RealmForge.iml
 # Ignored default folder with query files
 /queries/
