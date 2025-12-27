@@ -48,7 +48,7 @@ public partial class MeshApplySystem : SystemBase
         ref var meshJobResults = ref meshGenSystem.MeshJobResults;
 
         if (!meshJobResults.IsCreated || meshJobResults.Length == 0) return;
-
+        
         // Process completed jobs in reverse order
         for (int i = meshJobResults.Length - 1; i >= 0; i--)
         {
@@ -192,20 +192,13 @@ public partial class MeshApplySystem : SystemBase
 
     private void AddRenderingComponents(Entity entity, Mesh mesh)
     {
-        // Calculate world position from ChunkData
+        // ★ 옥트리 기반: ChunkMin을 엔티티 위치로 사용
+        // (버텍스는 로컬 좌표로 생성됨)
         float3 worldPosition = float3.zero;
         if (EntityManager.HasComponent<ChunkData>(entity))
         {
             var chunkData = EntityManager.GetComponentData<ChunkData>(entity);
-            int chunkSize = chunkData.ChunkSize;
-            int3 chunkPos = chunkData.ChunkPosition;
-
-            // World position = ChunkPosition * ChunkSize (voxel units)
-            worldPosition = new float3(
-                chunkPos.x * chunkSize,
-                chunkPos.y * chunkSize,
-                chunkPos.z * chunkSize
-            );
+            worldPosition = chunkData.Min;
         }
 
         // Set transform with chunk position

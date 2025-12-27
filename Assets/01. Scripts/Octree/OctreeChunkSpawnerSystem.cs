@@ -31,8 +31,11 @@ public partial class OctreeChunkSpawnerSystem : SystemBase
 
     protected override void OnUpdate()
     {
+        // ★ Client World에서만 실행 (렌더링은 클라이언트만 가능)
+        if (!World.Name.Contains("Client")) return;
+
         if (OctreeManager.Instance == null) return;
-        
+
         if (!_initialized)
         {
             var query = GetEntityQuery(typeof(PlanetTag));

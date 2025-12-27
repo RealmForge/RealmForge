@@ -16,6 +16,7 @@ public class PlanetEntitySpawner : MonoBehaviour
     public int chunkSize = 16;
 
     private Entity _planetEntity;
+    private World _targetWorld;
     private bool _spawned;
 
     void Start()
@@ -25,9 +26,24 @@ public class PlanetEntitySpawner : MonoBehaviour
 
     void SpawnPlanetEntity()
     {
-        var world = World.DefaultGameObjectInjectionWorld;
+        // ★ Client World에 생성 (렌더링용)
+        World world = null;
+        foreach (var w in World.All)
+        {
+            if (w.Name.Contains("Client"))
+            {
+                world = w;
+                break;
+            }
+        }
+
+        // Client World가 없으면 기본 World 사용
+        if (world == null)
+            world = World.DefaultGameObjectInjectionWorld;
+
         if (world == null) return;
-        
+
+        _targetWorld = world;
         var em = world.EntityManager;
 
         // Archetype으로 한 번에 생성
@@ -88,9 +104,9 @@ public class PlanetEntitySpawner : MonoBehaviour
 
     void OnDestroy()
     {
-        if (_spawned && World.DefaultGameObjectInjectionWorld != null)
+        if (_spawned && _targetWorld != null && _targetWorld.IsCreated)
         {
-            var em = World.DefaultGameObjectInjectionWorld.EntityManager;
+            var em = _targetWorld.EntityManager;
             if (em.Exists(_planetEntity))
             {
                 em.DestroyEntity(_planetEntity);

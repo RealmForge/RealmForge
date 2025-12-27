@@ -207,14 +207,6 @@ MonoBehaviour:
       z: 6
     useFirstLayerAsMask: 0
   chunkSize: 16
-  startChunkGrid:
-    x: -6
-    y: -6
-    z: -6
-  endChunkGrid:
-    x: 6
-    y: 6
-    z: 6
 --- !u!1 &170507913
 GameObject:
   m_ObjectHideFlags: 0

@@ -87,9 +87,9 @@ public struct MarchingCubesJob : IJob
         {
             int3 corner = new int3(x, y, z) + GetCornerOffset(i);
             cornerDensities[i] = GetDensity(corner.x, corner.y, corner.z);
-            
-            // ★ 변경: ChunkMin 오프셋 추가
-            cornerPositions[i] = ChunkMin + new float3(corner.x, corner.y, corner.z) * VoxelSize;
+
+            // ★ 변경: 로컬 좌표로 생성 (엔티티 Transform에서 ChunkMin 적용)
+            cornerPositions[i] = new float3(corner.x, corner.y, corner.z) * VoxelSize;
         }
 
         int cubeIndex = 0;
