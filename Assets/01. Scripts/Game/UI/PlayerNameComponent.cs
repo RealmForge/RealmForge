@@ -4,7 +4,7 @@ using Unity.NetCode;
 
 namespace RealmForge.Game.UI
 {
-    [GhostComponent(PrefabType = GhostPrefabType.AllPredicted)]
+    [GhostComponent(PrefabType = GhostPrefabType.All)]
     public struct PlayerNameComponent : IComponentData
     {
         [GhostField] public FixedString64Bytes DisplayName;

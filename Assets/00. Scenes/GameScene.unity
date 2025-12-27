@@ -273,7 +273,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   gravity: 20
-  radius: 5
 --- !u!135 &1094649225
 SphereCollider:
   m_ObjectHideFlags: 0

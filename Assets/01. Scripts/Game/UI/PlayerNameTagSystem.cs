@@ -18,6 +18,7 @@ namespace RealmForge.Game.UI
         protected override void OnCreate()
         {
             nameTagMap = new Dictionary<Entity, GameObject>();
+            Debug.Log($"[PlayerNameTagSystem] System enabled in world: {World.Name}");
         }
 
         protected override void OnUpdate()
@@ -28,20 +29,40 @@ namespace RealmForge.Game.UI
                 CreateNameTagPrefab();
             }
 
-            // 디버그: PlayerNameComponent를 가진 엔티티 수 확인
+            // 디버그: PlayerNameComponent를 가진 엔티티 수 확인 (상세 정보 포함)
             int playerCount = 0;
-            Entities
-                .WithAll<PlayerNameComponent>()
-                .WithNone<Prefab>()
-                .WithoutBurst()
-                .ForEach((Entity entity) =>
+            int prefabCount = 0;
+            int noTransformCount = 0;
+
+            // 전체 PlayerNameComponent 엔티티 (Prefab 포함)
+            foreach (var (nameComp, entity) in SystemAPI.Query<RefRO<PlayerNameComponent>>().WithEntityAccess())
+            {
+                bool isPrefab = SystemAPI.HasComponent<Prefab>(entity);
+                bool hasLocalTransform = SystemAPI.HasComponent<LocalTransform>(entity);
+                bool hasLocalToWorld = SystemAPI.HasComponent<LocalToWorld>(entity);
+
+                if (isPrefab)
+                {
+                    prefabCount++;
+                }
+                else
                 {
                     playerCount++;
-                }).Run();
+                    if (!hasLocalTransform && !hasLocalToWorld)
+                    {
+                        noTransformCount++;
+                        Debug.LogWarning($"[PlayerNameTagSystem] Entity has NO Transform! Name: '{nameComp.ValueRO.DisplayName}', NetworkId: {nameComp.ValueRO.NetworkId}");
+                    }
+                    else
+                    {
+                        Debug.Log($"[PlayerNameTagSystem] Found player entity - Name: '{nameComp.ValueRO.DisplayName}', NetworkId: {nameComp.ValueRO.NetworkId}, HasLocalTransform: {hasLocalTransform}, HasLocalToWorld: {hasLocalToWorld}, InMap: {nameTagMap.ContainsKey(entity)}");
+                    }
+                }
+            }
 
-            if (playerCount > 0)
+            if (playerCount > 0 || prefabCount > 0)
             {
-                Debug.Log($"[PlayerNameTagSystem] Found {playerCount} players with PlayerNameComponent");
+                Debug.Log($"[PlayerNameTagSystem] Total: {playerCount} players, {prefabCount} prefabs, {noTransformCount} without transform, {nameTagMap.Count} in map");
             }
 
             // 새로운 플레이어에 대해 네임태그 생성
@@ -49,8 +70,18 @@ namespace RealmForge.Game.UI
                 .WithAll<PlayerNameComponent>()
                 .WithNone<Prefab>()
                 .WithoutBurst()
-                .ForEach((Entity entity, in PlayerNameComponent nameComp, in LocalTransform transform) =>
+                .ForEach((Entity entity, in PlayerNameComponent nameComp) =>
                 {
+                    // Transform 컴포넌트 확인 (LocalTransform 또는 LocalToWorld)
+                    bool hasTransform = SystemAPI.HasComponent<LocalTransform>(entity) ||
+                                       SystemAPI.HasComponent<LocalToWorld>(entity);
+
+                    if (!hasTransform)
+                    {
+                        Debug.LogWarning($"[PlayerNameTagSystem] Entity {nameComp.DisplayName} has no transform component, skipping");
+                        return;
+                    }
+
                     Debug.Log($"[PlayerNameTagSystem] Processing entity with name: {nameComp.DisplayName}");
 
                     if (!nameTagMap.ContainsKey(entity))
@@ -64,10 +95,15 @@ namespace RealmForge.Game.UI
                         if (textComponent != null)
                         {
                             textComponent.text = nameComp.DisplayName.ToString();
+                            Debug.Log($"[PlayerNameTagSystem] Text set to: '{textComponent.text}', Active: {textComponent.gameObject.activeSelf}, Parent Active: {nameTag.activeSelf}");
+                        }
+                        else
+                        {
+                            Debug.LogWarning("[PlayerNameTagSystem] Text component not found in children!");
                         }
 
                         nameTagMap[entity] = nameTag;
-                        Debug.Log($"[PlayerNameTagSystem] Created nametag for: {nameComp.DisplayName}");
+                        Debug.Log($"[PlayerNameTagSystem] Created nametag for: {nameComp.DisplayName}, Active: {nameTag.activeSelf}, InHierarchy: {nameTag.scene.IsValid()}");
                     }
                 }).Run();
 

@@ -29,7 +29,7 @@ public class RoomManager : MonoBehaviour
     [SerializeField] private GameObject userPanelPrefab;
 
     [Header("Settings")]
-    [SerializeField] private float lobbyPollInterval = 3f;  // Rate limit 방지를 위해 3초로 증가
+    [SerializeField] private float lobbyPollInterval = 2f;  // 2초로 조정 (게임 시작 감지 속도 향상)
     [SerializeField] private float heartbeatInterval = 15f;
     [SerializeField] private string gameSceneName = "GameScene";
 
@@ -350,7 +350,11 @@ public class RoomManager : MonoBehaviour
 
             Debug.Log($"[ROOM] Game started! Relay code: {relayJoinCode}");
 
-            // 5. 게임 씬으로 전환
+            // 5. 클라이언트들이 Join Code를 감지할 시간 제공 (폴링 간격 고려)
+            Debug.Log("[ROOM] Waiting for clients to detect join code...");
+            await Task.Delay(3000); // 3초 대기 (폴링 간격 2초 + 여유 1초)
+
+            // 6. 게임 씬으로 전환
             LoadGameScene();
         }
         catch (Exception e)
