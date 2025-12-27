@@ -108,7 +108,7 @@ public partial struct NoiseGenerationSystem : ISystem
             }
 
             state.Dependency = JobHandle.CombineDependencies(jobHandles);
-            m_NoiseJobResults.AddRange(newJobs);
+            m_NoiseJobResults.AddRange(newJobs.AsArray());
 
             jobHandles.Dispose();
         }
