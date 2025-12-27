@@ -69,7 +69,7 @@ namespace RealmForge.Game.UI
                     }
                 }).Run();
 
-            // 기존 네임태그 위치 업데이트
+            // 기존 네임태그 위치 및 회전 업데이트 (플레이어 로컬 좌표계 기준)
             foreach (var kvp in nameTagMap)
             {
                 Entity entity = kvp.Key;
@@ -81,8 +81,13 @@ namespace RealmForge.Game.UI
                 if (SystemAPI.HasComponent<LocalTransform>(entity))
                 {
                     LocalTransform transform = SystemAPI.GetComponent<LocalTransform>(entity);
-                    // 플레이어 머리 위 1.5 유닛 위치에 네임태그 배치
-                    nameTag.transform.position = transform.Position + new Unity.Mathematics.float3(0, 1.5f, 0);
+
+                    // 플레이어의 로컬 "위" 방향으로 1.5 유닛 떨어진 위치에 배치
+                    Unity.Mathematics.float3 upDirection = Unity.Mathematics.math.mul(transform.Rotation, new Unity.Mathematics.float3(0, 1, 0));
+                    nameTag.transform.position = transform.Position + upDirection * 1.5f;
+
+                    // 플레이어의 회전을 따라가도록 설정 (중력 방향에 맞춰 회전)
+                    nameTag.transform.rotation = transform.Rotation;
                 }
             }
 
@@ -169,11 +174,6 @@ namespace RealmForge.Game.UI
 
             // 디버깅: 폰트와 텍스트 상태 확인
             Debug.Log($"[PlayerNameTagSystem] Font: {text.font != null}, Material: {text.material != null}, Text: '{text.text}', FontSize: {text.fontSize}, Color: {text.color}");
-
-            // 텍스트에 Outline 추가 (가독성 향상)
-            Outline outline = textObj.AddComponent<Outline>();
-            outline.effectColor = Color.black;
-            outline.effectDistance = new Vector2(2, -2);
 
             RectTransform textRect = textObj.GetComponent<RectTransform>();
             textRect.anchorMin = Vector2.zero;

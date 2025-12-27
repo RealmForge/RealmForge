@@ -5,15 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0b82a9c4-9099-46bc-8b08-31f2081a5886" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.claude/settings.local.json" beforeDir="false" afterPath="$PROJECT_DIR$/.claude/settings.local.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.RealmForge/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.RealmForge/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/Network/GoInGameServerSystem.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/01. Scripts/Game/Network/GoInGameServerSystem.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/PlayerAuthoring.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/01. Scripts/Game/PlayerAuthoring.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ProjectSettings/EntitiesClientSettings.asset" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/EntitiesClientSettings.asset" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ProjectSettings/MultiplayerManager.asset" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/MultiplayerManager.asset" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ProjectSettings/NetCodeClientAndServerSettings.asset" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/NetCodeClientAndServerSettings.asset" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ProjectSettings/NetCodeServerSettings.asset" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/NetCodeServerSettings.asset" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ProjectSettings/Packages/com.unity.services.vivox/Settings.json" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/Packages/com.unity.services.vivox/Settings.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/UI/NameTagBillboard.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/01. Scripts/Game/UI/NameTagBillboard.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/UI/PlayerNameTagSystem.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/01. Scripts/Game/UI/PlayerNameTagSystem.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -175,7 +168,7 @@
       <workItem from="1766565464716" duration="190000" />
       <workItem from="1766737821701" duration="9775000" />
       <workItem from="1766858785671" duration="1761000" />
-      <workItem from="1766860883021" duration="1036000" />
+      <workItem from="1766860883021" duration="1407000" />
     </task>
     <servers />
   </component>
