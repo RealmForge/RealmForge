@@ -1,10 +1,12 @@
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Physics;
 using Unity.Rendering;
 using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.Rendering;
+using Material = UnityEngine.Material;
 
 /// <summary>
 /// Applies completed mesh generation results to entities.
@@ -125,10 +127,67 @@ public partial class MeshApplySystem : SystemBase
         Mesh.ApplyAndDisposeWritableMeshData(meshDataArray, mesh);
         mesh.RecalculateBounds();
 
+        // Add physics collider for collision detection
+        AddMeshCollider(entity, result.Vertices, result.Indices);
+
         // Add rendering components to entity
         AddRenderingComponents(entity, mesh);
 
         Debug.Log($"Mesh created for entity {entity.Index}: {vertexCount} vertices, {indexCount / 3} triangles");
+    }
+
+    private void AddMeshCollider(Entity entity, NativeList<float3> vertexList, NativeList<int> indexList)
+    {
+        int vertexCount = vertexList.Length;
+        int triangleCount = indexList.Length / 3;
+
+        if (vertexCount == 0 || triangleCount == 0) return;
+
+        // Copy vertices to NativeArray
+        var vertices = new NativeArray<float3>(vertexCount, Allocator.Temp);
+        for (int i = 0; i < vertexCount; i++)
+        {
+            vertices[i] = vertexList[i];
+        }
+
+        // Convert indices to int3 triangles
+        var triangles = new NativeArray<int3>(triangleCount, Allocator.Temp);
+        for (int i = 0; i < triangleCount; i++)
+        {
+            triangles[i] = new int3(
+                indexList[i * 3],
+                indexList[i * 3 + 1],
+                indexList[i * 3 + 2]
+            );
+        }
+
+        // Create MeshCollider
+        var collider = Unity.Physics.MeshCollider.Create(vertices, triangles);
+
+        vertices.Dispose();
+        triangles.Dispose();
+
+        // Add or set PhysicsCollider component
+        if (!EntityManager.HasComponent<PhysicsCollider>(entity))
+        {
+            EntityManager.AddComponentData(entity, new PhysicsCollider
+            {
+                Value = collider
+            });
+        }
+        else
+        {
+            // Dispose old collider before replacing
+            var oldCollider = EntityManager.GetComponentData<PhysicsCollider>(entity);
+            if (oldCollider.Value.IsCreated)
+            {
+                oldCollider.Value.Dispose();
+            }
+            EntityManager.SetComponentData(entity, new PhysicsCollider
+            {
+                Value = collider
+            });
+        }
     }
 
     private void AddRenderingComponents(Entity entity, Mesh mesh)
