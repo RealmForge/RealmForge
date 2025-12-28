@@ -62,6 +62,12 @@ public partial struct NoiseGenerationSystem : ISystem
                 Offset = noiseSettings.ValueRO.Offset,
                 Seed = noiseSettings.ValueRO.Seed,
 
+                CaveScale = noiseSettings.ValueRO.CaveScale,
+                CaveOctaves = noiseSettings.ValueRO.CaveOctaves,
+                CaveThreshold = noiseSettings.ValueRO.CaveThreshold,
+                CaveStrength = noiseSettings.ValueRO.CaveStrength,
+                CaveMaxDepth = noiseSettings.ValueRO.CaveMaxDepth,
+
                 NoiseValues = noiseValues
             };
 

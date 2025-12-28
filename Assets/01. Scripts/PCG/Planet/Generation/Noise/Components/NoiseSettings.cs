@@ -3,6 +3,7 @@ using Unity.Mathematics;
 
 public struct NoiseSettings : IComponentData
 {
+    // Surface
     public float Scale;
     public int Octaves;
     public float Persistence;
@@ -10,6 +11,13 @@ public struct NoiseSettings : IComponentData
     public float HeightMultiplier;
     public float3 Offset;
     public int Seed;
+
+    // Cave
+    public float CaveScale;
+    public int CaveOctaves;
+    public float CaveThreshold;
+    public float CaveStrength;
+    public float CaveMaxDepth;
 }
 
 public struct NoiseGenerationRequest : IComponentData, IEnableableComponent {}

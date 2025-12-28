@@ -8,7 +8,7 @@ public class PlanetEntitySpawner : MonoBehaviour
     public float3 center = float3.zero;
     public float radius = 64f;
 
-    [Header("Noise Settings")]
+    [Header("Surface Noise")]
     public float noiseScale = 50f;
     public int octaves = 6;
     [Range(0f, 1f)]
@@ -17,6 +17,14 @@ public class PlanetEntitySpawner : MonoBehaviour
     public float heightMultiplier = 10f;
     public float3 offset = float3.zero;
     public int seed = 0;
+
+    [Header("Cave")]
+    public float caveScale = 30f;
+    public int caveOctaves = 3;
+    [Range(0f, 1f)]
+    public float caveThreshold = 0.5f;
+    public float caveStrength = 20f;
+    public float caveMaxDepth = 30f;
 
     [Header("Chunk Settings")]
     public int chunkSize = 16;
@@ -78,7 +86,13 @@ public class PlanetEntitySpawner : MonoBehaviour
             Lacunarity = lacunarity,
             HeightMultiplier = heightMultiplier,
             Offset = offset,
-            Seed = seed
+            Seed = seed,
+
+            CaveScale = caveScale,
+            CaveOctaves = caveOctaves,
+            CaveThreshold = caveThreshold,
+            CaveStrength = caveStrength,
+            CaveMaxDepth = caveMaxDepth
         });
 
         _spawned = true;
