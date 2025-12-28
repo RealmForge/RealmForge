@@ -36,8 +36,13 @@ public partial class MeshApplySystem : SystemBase
     {
         if (defaultMaterial == null)
         {
-            defaultMaterial = new UnityEngine.Material(Shader.Find("Universal Render Pipeline/Lit"));
-            defaultMaterial.color = Color.gray;
+            var shader = Shader.Find("Custom/TerrainVertexColor");
+            if (shader == null)
+            {
+                shader = Shader.Find("Universal Render Pipeline/Lit");
+            }
+            defaultMaterial = new UnityEngine.Material(shader);
+            defaultMaterial.enableInstancing = true;
         }
     }
 
@@ -94,6 +99,8 @@ public partial class MeshApplySystem : SystemBase
                 if (result.Vertices.IsCreated) result.Vertices.Dispose();
                 if (result.Normals.IsCreated) result.Normals.Dispose();
                 if (result.Indices.IsCreated) result.Indices.Dispose();
+                if (result.Colors.IsCreated) result.Colors.Dispose();
+                if (result.TerrainLayers.IsCreated) result.TerrainLayers.Dispose();
 
                 meshJobResults.RemoveAtSwapBack(i);
             }
@@ -196,9 +203,10 @@ public partial class MeshApplySystem : SystemBase
         var meshDataArray = Mesh.AllocateWritableMeshData(1);
         var meshData = meshDataArray[0];
 
-        var vertexAttributes = new NativeArray<VertexAttributeDescriptor>(2, Allocator.Temp);
+        var vertexAttributes = new NativeArray<VertexAttributeDescriptor>(3, Allocator.Temp);
         vertexAttributes[0] = new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3);
         vertexAttributes[1] = new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3);
+        vertexAttributes[2] = new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.Float32, 4);
 
         meshData.SetVertexBufferParams(vertexCount, vertexAttributes);
         meshData.SetIndexBufferParams(indexCount, IndexFormat.UInt32);
@@ -211,7 +219,8 @@ public partial class MeshApplySystem : SystemBase
             vertices[i] = new MeshVertex
             {
                 Position = result.Vertices[i],
-                Normal = result.Normals[i]
+                Normal = result.Normals[i],
+                Color = result.Colors[i]
             };
         }
 
@@ -287,4 +296,5 @@ public struct MeshVertex
 {
     public float3 Position;
     public float3 Normal;
+    public float4 Color;
 }

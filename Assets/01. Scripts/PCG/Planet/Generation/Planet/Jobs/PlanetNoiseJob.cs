@@ -50,15 +50,15 @@ public struct PlanetNoiseJob : IJobParallelFor
         float density = sphereDensity - surfaceNoise * HeightMultiplier;
 
         // 동굴: 행성 내부에서만 적용
-        if (density < 0 && CaveStrength > 0)
+        if (sphereDensity < 0 && CaveStrength > 0)
         {
-            float depthFactor = math.saturate(-density / CaveMaxDepth);
+            float depthFactor = math.saturate(-(sphereDensity - HeightMultiplier) / CaveMaxDepth);
             float caveNoise = GenerateCaveNoise(worldPos);
 
             if (caveNoise > CaveThreshold)
             {
                 float caveValue = (caveNoise - CaveThreshold) / (1f - CaveThreshold);
-                density += caveValue * CaveStrength * depthFactor;
+                density += (caveValue * -1 + 1) * CaveStrength * depthFactor;
             }
         }
 

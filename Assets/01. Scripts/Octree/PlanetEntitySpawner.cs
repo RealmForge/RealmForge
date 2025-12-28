@@ -2,6 +2,13 @@ using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
+[System.Serializable]
+public struct TerrainLayerConfig
+{
+    public float maxHeight;
+    public Color color;
+}
+
 public class PlanetEntitySpawner : MonoBehaviour
 {
     [Header("Planet Settings")]
@@ -28,6 +35,14 @@ public class PlanetEntitySpawner : MonoBehaviour
 
     [Header("Chunk Settings")]
     public int chunkSize = 16;
+
+    [Header("Terrain Layers")]
+    public TerrainLayerConfig[] terrainLayers = new TerrainLayerConfig[]
+    {
+        new TerrainLayerConfig { maxHeight = 5f, color = new Color(0.5f, 0.5f, 0.5f) },
+        new TerrainLayerConfig { maxHeight = 10f, color = new Color(0.6f, 0.4f, 0.2f) },
+        new TerrainLayerConfig { maxHeight = 20f, color = new Color(0.3f, 0.7f, 0.2f) }
+    };
 
     private Entity _planetEntity;
     private World _targetWorld;
@@ -94,6 +109,16 @@ public class PlanetEntitySpawner : MonoBehaviour
             CaveStrength = caveStrength,
             CaveMaxDepth = caveMaxDepth
         });
+
+        var terrainBuffer = em.AddBuffer<TerrainLayerBuffer>(_planetEntity);
+        foreach (var layer in terrainLayers)
+        {
+            terrainBuffer.Add(new TerrainLayerBuffer
+            {
+                MaxHeight = layer.maxHeight,
+                Color = new float4(layer.color.r, layer.color.g, layer.color.b, layer.color.a)
+            });
+        }
 
         _spawned = true;
         Debug.Log($"[PlanetEntitySpawner] Planet entity created. Center={center}, Radius={radius}");

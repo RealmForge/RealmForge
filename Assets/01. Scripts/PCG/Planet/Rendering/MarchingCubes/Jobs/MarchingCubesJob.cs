@@ -15,9 +15,14 @@ public struct MarchingCubesJob : IJob
     public float VoxelSize;
     public float3 ChunkMin;
 
+    public float3 PlanetCenter;
+    public float PlanetRadius;
+    [ReadOnly] public NativeArray<TerrainLayerBuffer> TerrainLayers;
+
     public NativeList<float3> Vertices;
     public NativeList<float3> Normals;
     public NativeList<int> Indices;
+    public NativeList<float4> Colors;
 
     private static int3 GetCornerOffset(int index)
     {
@@ -127,6 +132,10 @@ public struct MarchingCubesJob : IJob
 
             int baseIndex = Vertices.Length;
 
+            float4 c0 = GetLayerColor(v0);
+            float4 c1 = GetLayerColor(v1);
+            float4 c2 = GetLayerColor(v2);
+
             Vertices.Add(v0);
             Vertices.Add(v1);
             Vertices.Add(v2);
@@ -135,10 +144,33 @@ public struct MarchingCubesJob : IJob
             Normals.Add(normal);
             Normals.Add(normal);
 
+            Colors.Add(c0);
+            Colors.Add(c1);
+            Colors.Add(c2);
+
             Indices.Add(baseIndex);
             Indices.Add(baseIndex + 1);
             Indices.Add(baseIndex + 2);
         }
+    }
+
+    private float4 GetLayerColor(float3 localPos)
+    {
+        float3 worldPos = ChunkMin + localPos;
+        float height = math.distance(worldPos, PlanetCenter) - PlanetRadius;
+
+        float4 color = new float4(1, 1, 1, 1);
+
+        for (int i = 0; i < TerrainLayers.Length; i++)
+        {
+            if (height <= TerrainLayers[i].MaxHeight)
+            {
+                color = TerrainLayers[i].Color;
+                break;
+            }
+        }
+
+        return color;
     }
 
     private float GetDensity(int x, int y, int z)

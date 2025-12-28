@@ -13,6 +13,7 @@ public partial class OctreeChunkSpawnerSystem : SystemBase
     private NoiseSettings _cachedNoiseSettings;
     private PlanetData _cachedPlanetData;
     private PlanetChunkSettings _cachedChunkSettings;
+    private NativeArray<TerrainLayerBuffer> _cachedTerrainLayers;
 
     protected override void OnCreate()
     {
@@ -23,6 +24,8 @@ public partial class OctreeChunkSpawnerSystem : SystemBase
     {
         if (_nodeToEntity.IsCreated)
             _nodeToEntity.Dispose();
+        if (_cachedTerrainLayers.IsCreated)
+            _cachedTerrainLayers.Dispose();
     }
 
     protected override void OnUpdate()
@@ -41,6 +44,13 @@ public partial class OctreeChunkSpawnerSystem : SystemBase
             _cachedPlanetData = EntityManager.GetComponentData<PlanetData>(_planetEntity);
             _cachedChunkSettings = EntityManager.GetComponentData<PlanetChunkSettings>(_planetEntity);
             _cachedNoiseSettings = EntityManager.GetComponentData<NoiseSettings>(_planetEntity);
+
+            var terrainBuffer = EntityManager.GetBuffer<TerrainLayerBuffer>(_planetEntity);
+            _cachedTerrainLayers = new NativeArray<TerrainLayerBuffer>(terrainBuffer.Length, Allocator.Persistent);
+            for (int i = 0; i < terrainBuffer.Length; i++)
+            {
+                _cachedTerrainLayers[i] = terrainBuffer[i];
+            }
 
             _initialized = true;
             Debug.Log($"[OctreeChunkSpawner] Initialized");
@@ -122,6 +132,12 @@ public partial class OctreeChunkSpawnerSystem : SystemBase
         EntityManager.SetComponentEnabled<NoiseVisualizationReady>(entity, false);
 
         EntityManager.AddBuffer<NoiseDataBuffer>(entity);
+
+        var chunkTerrainBuffer = EntityManager.AddBuffer<TerrainLayerBuffer>(entity);
+        for (int i = 0; i < _cachedTerrainLayers.Length; i++)
+        {
+            chunkTerrainBuffer.Add(_cachedTerrainLayers[i]);
+        }
 
         return entity;
     }

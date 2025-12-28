@@ -36,6 +36,8 @@ public partial struct MeshGenerationSystem : ISystem
             if (result.Vertices.IsCreated) result.Vertices.Dispose();
             if (result.Normals.IsCreated) result.Normals.Dispose();
             if (result.Indices.IsCreated) result.Indices.Dispose();
+            if (result.Colors.IsCreated) result.Colors.Dispose();
+            if (result.TerrainLayers.IsCreated) result.TerrainLayers.Dispose();
         }
         MeshJobResults.Dispose();
 
@@ -48,8 +50,8 @@ public partial struct MeshGenerationSystem : ISystem
         var ecb = new EntityCommandBuffer(Allocator.Temp);
         var newJobs = new NativeList<MeshJobResult>(Allocator.Temp);
 
-        foreach (var (chunkData, noiseBuffer, entity) in
-            SystemAPI.Query<RefRO<ChunkData>, DynamicBuffer<NoiseDataBuffer>>()
+        foreach (var (chunkData, planetData, noiseBuffer, terrainBuffer, entity) in
+            SystemAPI.Query<RefRO<ChunkData>, RefRO<PlanetData>, DynamicBuffer<NoiseDataBuffer>, DynamicBuffer<TerrainLayerBuffer>>()
                 .WithAll<MeshGenerationRequest>()
                 .WithEntityAccess())
         {
@@ -69,8 +71,14 @@ public partial struct MeshGenerationSystem : ISystem
             var vertices = new NativeList<float3>(maxVertices, Allocator.TempJob);
             var normals = new NativeList<float3>(maxVertices, Allocator.TempJob);
             var indices = new NativeList<int>(maxVertices, Allocator.TempJob);
+            var colors = new NativeList<float4>(maxVertices, Allocator.TempJob);
 
-            // ★ 옥트리 기반 VoxelSize 계산
+            var terrainLayers = new NativeArray<TerrainLayerBuffer>(terrainBuffer.Length, Allocator.TempJob);
+            for (int i = 0; i < terrainBuffer.Length; i++)
+            {
+                terrainLayers[i] = terrainBuffer[i];
+            }
+
             float voxelSize = chunkData.ValueRO.Size / chunkSize;
 
             var job = new MarchingCubesJob
@@ -81,14 +89,17 @@ public partial struct MeshGenerationSystem : ISystem
                 ChunkSize = chunkSize,
                 SampleSize = sampleSize,
                 Threshold = 0f,
-                
-                // ★ 변경: 옥트리 기반 값
                 VoxelSize = voxelSize,
                 ChunkMin = chunkData.ValueRO.Min,
-                
+
+                PlanetCenter = planetData.ValueRO.Center,
+                PlanetRadius = planetData.ValueRO.Radius,
+                TerrainLayers = terrainLayers,
+
                 Vertices = vertices,
                 Normals = normals,
-                Indices = indices
+                Indices = indices,
+                Colors = colors
             };
 
             var jobHandle = job.Schedule(state.Dependency);
@@ -100,7 +111,9 @@ public partial struct MeshGenerationSystem : ISystem
                 NoiseData = noiseData,
                 Vertices = vertices,
                 Normals = normals,
-                Indices = indices
+                Indices = indices,
+                Colors = colors,
+                TerrainLayers = terrainLayers
             });
 
             ecb.SetComponentEnabled<MeshGenerationRequest>(entity, false);
@@ -134,4 +147,6 @@ public struct MeshJobResult
     public NativeList<float3> Vertices;
     public NativeList<float3> Normals;
     public NativeList<int> Indices;
+    public NativeList<float4> Colors;
+    public NativeArray<TerrainLayerBuffer> TerrainLayers;
 }
