@@ -164,12 +164,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rootSize: 100
-  maxDepth: 6
+  maxDepth: 2
   target: {fileID: 1903933679}
-  baseSubdivisionDepth: 3
-  activeTrackingDepth: 4
-  neighborPreloadDepth: 5
-  thetaThreshold: 1
+  maxLodDepth: 2
+  minLodDepth: 1
+  lodStepDistance: 10
+  boundaryThreshold: 0.057
 --- !u!1 &430097624
 GameObject:
   m_ObjectHideFlags: 0
@@ -320,27 +320,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8828eabbd631a9b49bc9a02f09d43c48, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  center:
-    x: 0
-    y: -256
-    z: 0
-  radius: 256
-  noiseScale: 150
-  octaves: 6
-  persistence: 0.5
-  lacunarity: 2
-  heightMultiplier: 40
-  offset:
-    x: 0
-    y: 0
-    z: 0
-  seed: 0
-  caveScale: 150
-  caveOctaves: 3
-  caveThreshold: 0.8
-  caveStrength: 100
-  caveMaxDepth: 30
-  chunkSize: 32
+  settings: {fileID: 11400000, guid: 6d0fa0e6336b913429e971d9b1b99fbd, type: 2}
 --- !u!4 &548911140
 Transform:
   m_ObjectHideFlags: 0
@@ -634,7 +614,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &2109436102
 Transform:
   m_ObjectHideFlags: 0

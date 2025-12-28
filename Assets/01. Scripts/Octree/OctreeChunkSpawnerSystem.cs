@@ -1,12 +1,19 @@
+// OctreeChunkSpawnerSystem.cs - Burst + Job System
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Jobs;
+using Unity.Burst;
 using UnityEngine;
 
 [UpdateInGroup(typeof(InitializationSystemGroup))]
 public partial class OctreeChunkSpawnerSystem : SystemBase
 {
-    private NativeHashMap<int, Entity> _nodeToEntity;
+    private NativeHashMap<long, Entity> _chunkMap;
+    private NativeList<long> _keysToRemove;
+    private NativeArray<long> _nodeKeys;
+    private NativeArray<bool> _isLeafFlags;
+    
     private Entity _planetEntity;
     private bool _initialized;
 
@@ -17,21 +24,22 @@ public partial class OctreeChunkSpawnerSystem : SystemBase
 
     protected override void OnCreate()
     {
-        _nodeToEntity = new NativeHashMap<int, Entity>(50000, Allocator.Persistent);
+        _chunkMap = new NativeHashMap<long, Entity>(50000, Allocator.Persistent);
+        _keysToRemove = new NativeList<long>(1000, Allocator.Persistent);
     }
 
     protected override void OnDestroy()
     {
-        if (_nodeToEntity.IsCreated)
-            _nodeToEntity.Dispose();
-        if (_cachedTerrainLayers.IsCreated)
-            _cachedTerrainLayers.Dispose();
+        if (_chunkMap.IsCreated) _chunkMap.Dispose();
+        if (_keysToRemove.IsCreated) _keysToRemove.Dispose();
+        if (_nodeKeys.IsCreated) _nodeKeys.Dispose();
+        if (_isLeafFlags.IsCreated) _isLeafFlags.Dispose();
+        if (_cachedTerrainLayers.IsCreated) _cachedTerrainLayers.Dispose();
     }
 
     protected override void OnUpdate()
     {
         if (!World.Name.Contains("Client")) return;
-
         if (OctreeManager.Instance == null) return;
 
         if (!_initialized)
@@ -40,7 +48,6 @@ public partial class OctreeChunkSpawnerSystem : SystemBase
             if (query.CalculateEntityCount() == 0) return;
 
             _planetEntity = query.GetSingletonEntity();
-
             _cachedPlanetData = EntityManager.GetComponentData<PlanetData>(_planetEntity);
             _cachedChunkSettings = EntityManager.GetComponentData<PlanetChunkSettings>(_planetEntity);
             _cachedNoiseSettings = EntityManager.GetComponentData<NoiseSettings>(_planetEntity);
@@ -59,43 +66,88 @@ public partial class OctreeChunkSpawnerSystem : SystemBase
         var pool = OctreeManager.Instance.GetPool();
         if (pool.Capacity == 0) return;
 
-        int newChunks = 0;
+        // Job용 배열 초기화
+        if (!_nodeKeys.IsCreated || _nodeKeys.Length != pool.Capacity)
+        {
+            if (_nodeKeys.IsCreated) _nodeKeys.Dispose();
+            if (_isLeafFlags.IsCreated) _isLeafFlags.Dispose();
+            
+            _nodeKeys = new NativeArray<long>(pool.Capacity, Allocator.Persistent);
+            _isLeafFlags = new NativeArray<bool>(pool.Capacity, Allocator.Persistent);
+        }
 
+        // 1단계: 병렬로 리프 노드 수집
+        var leafJob = new CollectLeafNodesJob
+        {
+            Nodes = pool.Nodes,
+            IsUsedFlags = pool.IsUsedFlags,
+            IsLeafFlags = _isLeafFlags
+        };
+        var leafHandle = leafJob.Schedule(pool.Capacity, 256);
+        
+        // 2단계: 병렬로 노드 키 생성
+        var keyJob = new GenerateNodeKeysJob
+        {
+            Nodes = pool.Nodes,
+            IsUsedFlags = pool.IsUsedFlags,
+            IsLeafFlags = _isLeafFlags,
+            NodeKeys = _nodeKeys
+        };
+        var keyHandle = keyJob.Schedule(pool.Capacity, 256, leafHandle);
+        keyHandle.Complete();
+
+        // 3단계: 메인 스레드에서 엔티티 생성/삭제
+        ProcessChunksMainThread(pool);
+    }
+    
+    void ProcessChunksMainThread(OctreeNodePool pool)
+    {
+        int newChunks = 0;
+        int removedChunks = 0;
+
+        var activeKeys = new NativeHashSet<long>(1000, Allocator.Temp);
+        
         for (int i = 0; i < pool.Capacity; i++)
         {
-            if (!pool.IsUsed(i)) continue;
+            long key = _nodeKeys[i];
+            if (key == -1) continue;
+            
+            activeKeys.Add(key);
+
+            if (_chunkMap.ContainsKey(key)) continue;
 
             var node = pool.Get(i);
-
-            if (!node.IsLeaf) continue;
-            if (_nodeToEntity.ContainsKey(i)) continue;
-
             var entity = CreateChunkEntity(i, node);
-            _nodeToEntity.Add(i, entity);
+            _chunkMap.Add(key, entity);
             newChunks++;
         }
 
-        if (newChunks > 0)
+        _keysToRemove.Clear();
+        
+        foreach (var kvp in _chunkMap)
         {
-            Debug.Log($"[OctreeChunkSpawner] New chunks: {newChunks}, Total: {_nodeToEntity.Count}");
-        }
-
-        var toRemove = new NativeList<int>(Allocator.Temp);
-
-        foreach (var kvp in _nodeToEntity)
-        {
-            if (!pool.IsUsed(kvp.Key) || !pool.Get(kvp.Key).IsLeaf)
+            if (!activeKeys.Contains(kvp.Key))
             {
                 if (EntityManager.Exists(kvp.Value))
+                {
                     EntityManager.DestroyEntity(kvp.Value);
-                toRemove.Add(kvp.Key);
+                }
+                _keysToRemove.Add(kvp.Key);
+                removedChunks++;
             }
         }
 
-        foreach (var key in toRemove)
-            _nodeToEntity.Remove(key);
+        for (int i = 0; i < _keysToRemove.Length; i++)
+        {
+            _chunkMap.Remove(_keysToRemove[i]);
+        }
 
-        toRemove.Dispose();
+        activeKeys.Dispose();
+
+        if (newChunks > 0 || removedChunks > 0)
+        {
+            Debug.Log($"[OctreeChunkSpawner] New: {newChunks}, Removed: {removedChunks}, Total: {_chunkMap.Count}");
+        }
     }
 
     private Entity CreateChunkEntity(int nodeIndex, OctreeNode node)
@@ -144,8 +196,22 @@ public partial class OctreeChunkSpawnerSystem : SystemBase
 
     public bool TryGetChunkEntity(int nodeIndex, out Entity entity)
     {
-        return _nodeToEntity.TryGetValue(nodeIndex, out entity);
+        var pool = OctreeManager.Instance?.GetPool();
+        if (pool == null || !pool.Value.IsUsed(nodeIndex))
+        {
+            entity = Entity.Null;
+            return false;
+        }
+        
+        long key = _nodeKeys[nodeIndex];
+        if (key == -1)
+        {
+            entity = Entity.Null;
+            return false;
+        }
+        
+        return _chunkMap.TryGetValue(key, out entity);
     }
 
-    public int ActiveChunkCount => _nodeToEntity.Count;
+    public int ActiveChunkCount => _chunkMap.Count;
 }

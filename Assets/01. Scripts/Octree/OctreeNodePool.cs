@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using Unity.Collections;
 using Unity.Mathematics;
 using Unity.Burst;
+using Unity.Jobs;
 
 [BurstCompile]
 public struct OctreeNode
@@ -41,6 +42,53 @@ public struct OctreeNode
         float halfSize = Size * 0.5f;
         min = Center - new float3(halfSize);
         max = Center + new float3(halfSize);
+    }
+    
+    [BurstCompile]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static float DistanceToPoint(float3 center, float size, float3 point)
+    {
+        float halfSize = size * 0.5f;
+        float3 min = center - new float3(halfSize);
+        float3 max = center + new float3(halfSize);
+        
+        if (point.x >= min.x && point.x <= max.x &&
+            point.y >= min.y && point.y <= max.y &&
+            point.z >= min.z && point.z <= max.z)
+        {
+            return 0f;
+        }
+        
+        float3 closest;
+        closest.x = math.clamp(point.x, min.x, max.x);
+        closest.y = math.clamp(point.y, min.y, max.y);
+        closest.z = math.clamp(point.z, min.z, max.z);
+        
+        return math.distance(point, closest);
+    }
+    
+    [BurstCompile]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool ContainsPoint(float3 center, float size, float3 point)
+    {
+        float halfSize = size * 0.5f;
+        float3 min = center - new float3(halfSize);
+        float3 max = center + new float3(halfSize);
+        
+        return point.x >= min.x && point.x <= max.x &&
+               point.y >= min.y && point.y <= max.y &&
+               point.z >= min.z && point.z <= max.z;
+    }
+    
+    [BurstCompile]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int GetOctant(float3 nodeCenter, float3 position)
+    {
+        int octant = 0;
+        if (position.x >= nodeCenter.x) octant |= 1;
+        if (position.y >= nodeCenter.y) octant |= 2;
+        if (position.z >= nodeCenter.z) octant |= 4;
+        return octant;
     }
     
     public static OctreeNode CreateEmpty()
@@ -129,9 +177,7 @@ public struct OctreeNodePool : IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IsUsed(int index) => IsUsedFlags[index];
 
-    /// <summary>
-    /// 단일 노드 분할 (순차 처리용)
-    /// </summary>
+    [BurstCompile]
     public bool Subdivide(int parentIndex)
     {
         var parent = Nodes[parentIndex];
@@ -170,9 +216,7 @@ public struct OctreeNodePool : IDisposable
         return true;
     }
     
-    /// <summary>
-    /// 서브트리 전체 병합 (순차 처리용)
-    /// </summary>
+    [BurstCompile]
     public bool Merge(int parentIndex, ref NativeArray<int> workStack)
     {
         var parent = Nodes[parentIndex];
@@ -216,5 +260,115 @@ public struct OctreeNodePool : IDisposable
         if (IsUsedFlags.IsCreated) IsUsedFlags.Dispose();
         if (FreeStack.IsCreated) FreeStack.Dispose();
         if (FreeCountArray.IsCreated) FreeCountArray.Dispose();
+    }
+}
+
+// ============ Jobs ============
+
+/// <summary>
+/// 각 노드의 목표 깊이 계산 (병렬)
+/// </summary>
+[BurstCompile(OptimizeFor = OptimizeFor.Performance)]
+public struct CalculateTargetDepthJob : IJobParallelFor
+{
+    [ReadOnly] public NativeArray<OctreeNode> Nodes;
+    [ReadOnly] public NativeArray<bool> IsUsedFlags;
+    [ReadOnly] public float3 TargetPos;
+    [ReadOnly] public int MaxLodDepth;
+    [ReadOnly] public int MinLodDepth;
+    [ReadOnly] public float LodStepDistance;
+    [ReadOnly] public float BoundaryThreshold;
+    
+    [WriteOnly] public NativeArray<int> TargetDepths;
+    
+    public void Execute(int index)
+    {
+        if (!IsUsedFlags[index])
+        {
+            TargetDepths[index] = -1;
+            return;
+        }
+        
+        var node = Nodes[index];
+        float distance = OctreeNode.DistanceToPoint(node.Center, node.Size, TargetPos);
+        
+        int targetDepth;
+        if (distance <= 0)
+        {
+            targetDepth = MaxLodDepth;
+        }
+        else
+        {
+            int steps = (int)(distance / LodStepDistance);
+            targetDepth = math.clamp(MaxLodDepth - steps, MinLodDepth, MaxLodDepth);
+            
+            // 경계 근처 체크
+            float threshold = node.Size * BoundaryThreshold;
+            if (distance < threshold)
+            {
+                targetDepth = MaxLodDepth;
+            }
+        }
+        
+        TargetDepths[index] = targetDepth;
+    }
+}
+
+/// <summary>
+/// 리프 노드 수집 (병렬)
+/// </summary>
+[BurstCompile(OptimizeFor = OptimizeFor.Performance)]
+public struct CollectLeafNodesJob : IJobParallelFor
+{
+    [ReadOnly] public NativeArray<OctreeNode> Nodes;
+    [ReadOnly] public NativeArray<bool> IsUsedFlags;
+    
+    public NativeArray<bool> IsLeafFlags;
+    
+    public void Execute(int index)
+    {
+        if (!IsUsedFlags[index])
+        {
+            IsLeafFlags[index] = false;
+            return;
+        }
+        
+        IsLeafFlags[index] = Nodes[index].IsLeaf;
+    }
+}
+
+/// <summary>
+/// 노드 키 생성 (병렬)
+/// </summary>
+[BurstCompile(OptimizeFor = OptimizeFor.Performance)]
+public struct GenerateNodeKeysJob : IJobParallelFor
+{
+    [ReadOnly] public NativeArray<OctreeNode> Nodes;
+    [ReadOnly] public NativeArray<bool> IsUsedFlags;
+    [ReadOnly] public NativeArray<bool> IsLeafFlags;
+    
+    [WriteOnly] public NativeArray<long> NodeKeys;
+    
+    public void Execute(int index)
+    {
+        if (!IsUsedFlags[index] || !IsLeafFlags[index])
+        {
+            NodeKeys[index] = -1;
+            return;
+        }
+        
+        var node = Nodes[index];
+        int posHash = HashPosition(node.Center);
+        long key = ((long)node.Depth << 60) | ((long)(index & 0xFFFFF) << 40) | ((long)posHash & 0xFFFFFFFFFF);
+        NodeKeys[index] = key;
+    }
+    
+    [BurstCompile]
+    private static int HashPosition(float3 pos)
+    {
+        int x = (int)(pos.x * 100);
+        int y = (int)(pos.y * 100);
+        int z = (int)(pos.z * 100);
+        return x ^ (y << 10) ^ (z << 20);
     }
 }

@@ -1,3 +1,4 @@
+// PlanetEntitySpawner.cs (변경 없음 - MonoBehaviour라서 Job 적용 불가)
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
