@@ -164,9 +164,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rootSize: 100
-  maxDepth: 2
+  maxDepth: 5
   target: {fileID: 1903933679}
-  maxLodDepth: 2
+  maxLodDepth: 5
   minLodDepth: 1
   lodStepDistance: 10
   boundaryThreshold: 0.057
