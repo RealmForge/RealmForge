@@ -1,35 +1,42 @@
+using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Physics;
 using Unity.Rendering;
 using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.Rendering;
-using Material = UnityEngine.Material;
 
-/// <summary>
-/// Applies completed mesh generation results to entities.
-/// Creates Unity Mesh and adds rendering components.
-/// </summary>
 [UpdateAfter(typeof(MeshGenerationSystem))]
 public partial class MeshApplySystem : SystemBase
 {
     private SystemHandle meshGenerationSystemHandle;
-    private Material defaultMaterial;
+    private UnityEngine.Material defaultMaterial;
+    private List<PendingColliderJob> pendingColliderJobs;
+
+    private struct PendingColliderJob
+    {
+        public JobHandle JobHandle;
+        public Entity Entity;
+        public NativeArray<float3> Vertices;
+        public NativeArray<int3> Triangles;
+        public NativeArray<BlobAssetReference<Unity.Physics.Collider>> ColliderOutput;
+    }
 
     protected override void OnCreate()
     {
         RequireForUpdate<ChunkData>();
         meshGenerationSystemHandle = World.GetExistingSystem<MeshGenerationSystem>();
+        pendingColliderJobs = new List<PendingColliderJob>();
     }
 
     protected override void OnStartRunning()
     {
-        // Create default material if not set
         if (defaultMaterial == null)
         {
-            defaultMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            defaultMaterial = new UnityEngine.Material(Shader.Find("Universal Render Pipeline/Lit"));
             defaultMaterial.color = Color.gray;
         }
     }
@@ -40,16 +47,35 @@ public partial class MeshApplySystem : SystemBase
         {
             Object.Destroy(defaultMaterial);
         }
+
+        foreach (var pending in pendingColliderJobs)
+        {
+            pending.JobHandle.Complete();
+            if (pending.Vertices.IsCreated) pending.Vertices.Dispose();
+            if (pending.Triangles.IsCreated) pending.Triangles.Dispose();
+            if (pending.ColliderOutput.IsCreated)
+            {
+                if (pending.ColliderOutput[0].IsCreated)
+                    pending.ColliderOutput[0].Dispose();
+                pending.ColliderOutput.Dispose();
+            }
+        }
+        pendingColliderJobs.Clear();
     }
 
     protected override void OnUpdate()
+    {
+        ProcessCompletedMeshJobs();
+        ProcessCompletedColliderJobs();
+    }
+
+    private void ProcessCompletedMeshJobs()
     {
         ref var meshGenSystem = ref World.Unmanaged.GetUnsafeSystemRef<MeshGenerationSystem>(meshGenerationSystemHandle);
         ref var meshJobResults = ref meshGenSystem.MeshJobResults;
 
         if (!meshJobResults.IsCreated || meshJobResults.Length == 0) return;
-        
-        // Process completed jobs in reverse order
+
         for (int i = meshJobResults.Length - 1; i >= 0; i--)
         {
             var result = meshJobResults[i];
@@ -61,9 +87,9 @@ public partial class MeshApplySystem : SystemBase
                 if (result.Vertices.Length > 0)
                 {
                     CreateAndApplyMesh(result.Entity, result);
+                    ScheduleColliderJob(result.Entity, result);
                 }
 
-                // Dispose native collections
                 if (result.NoiseData.IsCreated) result.NoiseData.Dispose();
                 if (result.Vertices.IsCreated) result.Vertices.Dispose();
                 if (result.Normals.IsCreated) result.Normals.Dispose();
@@ -74,6 +100,90 @@ public partial class MeshApplySystem : SystemBase
         }
     }
 
+    private void ProcessCompletedColliderJobs()
+    {
+        for (int i = pendingColliderJobs.Count - 1; i >= 0; i--)
+        {
+            var pending = pendingColliderJobs[i];
+
+            if (pending.JobHandle.IsCompleted)
+            {
+                pending.JobHandle.Complete();
+
+                if (pending.ColliderOutput[0].IsCreated)
+                {
+                    ApplyCollider(pending.Entity, pending.ColliderOutput[0]);
+                }
+
+                if (pending.Vertices.IsCreated) pending.Vertices.Dispose();
+                if (pending.Triangles.IsCreated) pending.Triangles.Dispose();
+                if (pending.ColliderOutput.IsCreated) pending.ColliderOutput.Dispose();
+
+                pendingColliderJobs.RemoveAt(i);
+            }
+        }
+    }
+
+    private void ScheduleColliderJob(Entity entity, MeshJobResult result)
+    {
+        int vertexCount = result.Vertices.Length;
+        int triangleCount = result.Indices.Length / 3;
+
+        if (vertexCount == 0 || triangleCount == 0) return;
+
+        var vertices = new NativeArray<float3>(vertexCount, Allocator.TempJob);
+        var triangles = new NativeArray<int3>(triangleCount, Allocator.TempJob);
+        var colliderOutput = new NativeArray<BlobAssetReference<Unity.Physics.Collider>>(1, Allocator.TempJob);
+
+        NativeArray<float3>.Copy(result.Vertices.AsArray(), vertices);
+
+        for (int i = 0; i < triangleCount; i++)
+        {
+            triangles[i] = new int3(
+                result.Indices[i * 3],
+                result.Indices[i * 3 + 1],
+                result.Indices[i * 3 + 2]
+            );
+        }
+
+        var job = new ColliderCreationJob
+        {
+            Vertices = vertices,
+            Triangles = triangles,
+            Output = colliderOutput
+        };
+
+        var jobHandle = job.Schedule();
+
+        pendingColliderJobs.Add(new PendingColliderJob
+        {
+            JobHandle = jobHandle,
+            Entity = entity,
+            Vertices = vertices,
+            Triangles = triangles,
+            ColliderOutput = colliderOutput
+        });
+    }
+
+    private void ApplyCollider(Entity entity, BlobAssetReference<Unity.Physics.Collider> collider)
+    {
+        if (!EntityManager.Exists(entity)) return;
+
+        if (!EntityManager.HasComponent<PhysicsCollider>(entity))
+        {
+            EntityManager.AddComponentData(entity, new PhysicsCollider { Value = collider });
+        }
+        else
+        {
+            var oldCollider = EntityManager.GetComponentData<PhysicsCollider>(entity);
+            if (oldCollider.Value.IsCreated)
+            {
+                oldCollider.Value.Dispose();
+            }
+            EntityManager.SetComponentData(entity, new PhysicsCollider { Value = collider });
+        }
+    }
+
     private void CreateAndApplyMesh(Entity entity, MeshJobResult result)
     {
         int vertexCount = result.Vertices.Length;
@@ -81,14 +191,11 @@ public partial class MeshApplySystem : SystemBase
 
         if (vertexCount == 0 || indexCount == 0) return;
 
-        // Create mesh
         var mesh = new Mesh { name = $"ChunkMesh_{entity.Index}" };
 
-        // Allocate writable mesh data
         var meshDataArray = Mesh.AllocateWritableMeshData(1);
         var meshData = meshDataArray[0];
 
-        // Set vertex buffer params
         var vertexAttributes = new NativeArray<VertexAttributeDescriptor>(2, Allocator.Temp);
         vertexAttributes[0] = new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3);
         vertexAttributes[1] = new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3);
@@ -98,7 +205,6 @@ public partial class MeshApplySystem : SystemBase
 
         vertexAttributes.Dispose();
 
-        // Copy vertex data
         var vertices = meshData.GetVertexData<MeshVertex>();
         for (int i = 0; i < vertexCount; i++)
         {
@@ -109,91 +215,26 @@ public partial class MeshApplySystem : SystemBase
             };
         }
 
-        // Copy index data
         var indices = meshData.GetIndexData<uint>();
         for (int i = 0; i < indexCount; i++)
         {
             indices[i] = (uint)result.Indices[i];
         }
 
-        // Set submesh
         meshData.subMeshCount = 1;
         meshData.SetSubMesh(0, new SubMeshDescriptor(0, indexCount)
         {
             vertexCount = vertexCount
         });
 
-        // Apply mesh data
         Mesh.ApplyAndDisposeWritableMeshData(meshDataArray, mesh);
         mesh.RecalculateBounds();
 
-        // Add physics collider for collision detection
-        AddMeshCollider(entity, result.Vertices, result.Indices);
-
-        // Add rendering components to entity
         AddRenderingComponents(entity, mesh);
-
-        Debug.Log($"Mesh created for entity {entity.Index}: {vertexCount} vertices, {indexCount / 3} triangles");
-    }
-
-    private void AddMeshCollider(Entity entity, NativeList<float3> vertexList, NativeList<int> indexList)
-    {
-        int vertexCount = vertexList.Length;
-        int triangleCount = indexList.Length / 3;
-
-        if (vertexCount == 0 || triangleCount == 0) return;
-
-        // Copy vertices to NativeArray
-        var vertices = new NativeArray<float3>(vertexCount, Allocator.Temp);
-        for (int i = 0; i < vertexCount; i++)
-        {
-            vertices[i] = vertexList[i];
-        }
-
-        // Convert indices to int3 triangles
-        var triangles = new NativeArray<int3>(triangleCount, Allocator.Temp);
-        for (int i = 0; i < triangleCount; i++)
-        {
-            triangles[i] = new int3(
-                indexList[i * 3],
-                indexList[i * 3 + 1],
-                indexList[i * 3 + 2]
-            );
-        }
-
-        // Create MeshCollider
-        var collider = Unity.Physics.MeshCollider.Create(vertices, triangles);
-
-        vertices.Dispose();
-        triangles.Dispose();
-
-        // Add or set PhysicsCollider component
-        if (!EntityManager.HasComponent<PhysicsCollider>(entity))
-        {
-            EntityManager.AddComponentData(entity, new PhysicsCollider
-            {
-                Value = collider
-            });
-        }
-        else
-        {
-            // Dispose old collider before replacing
-            var oldCollider = EntityManager.GetComponentData<PhysicsCollider>(entity);
-            if (oldCollider.Value.IsCreated)
-            {
-                oldCollider.Value.Dispose();
-            }
-            EntityManager.SetComponentData(entity, new PhysicsCollider
-            {
-                Value = collider
-            });
-        }
     }
 
     private void AddRenderingComponents(Entity entity, Mesh mesh)
     {
-        // ★ 옥트리 기반: ChunkMin을 엔티티 위치로 사용
-        // (버텍스는 로컬 좌표로 생성됨)
         float3 worldPosition = float3.zero;
         if (EntityManager.HasComponent<ChunkData>(entity))
         {
@@ -201,7 +242,6 @@ public partial class MeshApplySystem : SystemBase
             worldPosition = chunkData.Min;
         }
 
-        // Set transform with chunk position
         if (!EntityManager.HasComponent<LocalTransform>(entity))
         {
             EntityManager.AddComponentData(entity, new LocalTransform
@@ -229,7 +269,6 @@ public partial class MeshApplySystem : SystemBase
             });
         }
 
-        // Add rendering components
         var renderMeshDescription = new RenderMeshDescription(ShadowCastingMode.On);
         var renderMeshArray = new RenderMeshArray(new[] { defaultMaterial }, new[] { mesh });
 
@@ -243,9 +282,6 @@ public partial class MeshApplySystem : SystemBase
     }
 }
 
-/// <summary>
-/// Vertex structure for mesh data (must match vertex attributes)
-/// </summary>
 [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
 public struct MeshVertex
 {

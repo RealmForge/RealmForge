@@ -3,9 +3,6 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-/// <summary>
-/// ★ 옥트리 기반: ChunkMin으로 월드 좌표 오프셋
-/// </summary>
 [BurstCompile]
 public struct MarchingCubesJob : IJob
 {
@@ -16,8 +13,6 @@ public struct MarchingCubesJob : IJob
     public int SampleSize;
     public float Threshold;
     public float VoxelSize;
-    
-    // ★ 추가
     public float3 ChunkMin;
 
     public NativeList<float3> Vertices;
@@ -62,6 +57,8 @@ public struct MarchingCubesJob : IJob
 
     public void Execute()
     {
+        var cornerDensities = new NativeArray<float>(8, Allocator.Temp);
+        var cornerPositions = new NativeArray<float3>(8, Allocator.Temp);
         var edgeVertices = new NativeArray<float3>(12, Allocator.Temp);
 
         for (int z = 0; z < ChunkSize; z++)
@@ -70,25 +67,25 @@ public struct MarchingCubesJob : IJob
             {
                 for (int x = 0; x < ChunkSize; x++)
                 {
-                    ProcessCube(x, y, z, ref edgeVertices);
+                    ProcessCube(x, y, z, ref cornerDensities, ref cornerPositions, ref edgeVertices);
                 }
             }
         }
 
+        cornerDensities.Dispose();
+        cornerPositions.Dispose();
         edgeVertices.Dispose();
     }
 
-    private void ProcessCube(int x, int y, int z, ref NativeArray<float3> edgeVertices)
+    private void ProcessCube(int x, int y, int z,
+        ref NativeArray<float> cornerDensities,
+        ref NativeArray<float3> cornerPositions,
+        ref NativeArray<float3> edgeVertices)
     {
-        var cornerDensities = new NativeArray<float>(8, Allocator.Temp);
-        var cornerPositions = new NativeArray<float3>(8, Allocator.Temp);
-
         for (int i = 0; i < 8; i++)
         {
             int3 corner = new int3(x, y, z) + GetCornerOffset(i);
             cornerDensities[i] = GetDensity(corner.x, corner.y, corner.z);
-
-            // ★ 변경: 로컬 좌표로 생성 (엔티티 Transform에서 ChunkMin 적용)
             cornerPositions[i] = new float3(corner.x, corner.y, corner.z) * VoxelSize;
         }
 
@@ -101,12 +98,7 @@ public struct MarchingCubesJob : IJob
             }
         }
 
-        if (EdgeTable[cubeIndex] == 0)
-        {
-            cornerDensities.Dispose();
-            cornerPositions.Dispose();
-            return;
-        }
+        if (EdgeTable[cubeIndex] == 0) return;
 
         int edgeFlags = EdgeTable[cubeIndex];
         for (int i = 0; i < 12; i++)
@@ -147,9 +139,6 @@ public struct MarchingCubesJob : IJob
             Indices.Add(baseIndex + 1);
             Indices.Add(baseIndex + 2);
         }
-
-        cornerDensities.Dispose();
-        cornerPositions.Dispose();
     }
 
     private float GetDensity(int x, int y, int z)
