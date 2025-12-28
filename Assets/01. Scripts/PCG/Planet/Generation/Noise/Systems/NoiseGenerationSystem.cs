@@ -3,10 +3,6 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 
-/// <summary>
-/// Planet 노이즈 생성 시스템.
-/// ★ 옥트리 기반: ChunkData.Min, ChunkData.Size 사용
-/// </summary>
 [BurstCompile]
 public partial struct NoiseGenerationSystem : ISystem
 {
@@ -23,14 +19,10 @@ public partial struct NoiseGenerationSystem : ISystem
     public void OnDestroy(ref SystemState state)
     {
         state.Dependency.Complete();
-
         for (int i = 0; i < m_NoiseJobResults.Length; i++)
         {
-            var jobResult = m_NoiseJobResults[i];
-            if (jobResult.NoiseValues.IsCreated)
-                jobResult.NoiseValues.Dispose();
-            if (jobResult.NoiseLayers.IsCreated)
-                jobResult.NoiseLayers.Dispose();
+            if (m_NoiseJobResults[i].NoiseValues.IsCreated)
+                m_NoiseJobResults[i].NoiseValues.Dispose();
         }
         m_NoiseJobResults.Dispose();
     }
@@ -40,8 +32,8 @@ public partial struct NoiseGenerationSystem : ISystem
         var ecb = new EntityCommandBuffer(Allocator.Temp);
         var newJobs = new NativeList<NoiseJobResult>(Allocator.Temp);
 
-        foreach (var (chunkData, planetData, layerBuffer, entity) in
-            SystemAPI.Query<RefRO<ChunkData>, RefRO<PlanetData>, DynamicBuffer<NoiseLayerBuffer>>()
+        foreach (var (chunkData, planetData, noiseSettings, entity) in
+            SystemAPI.Query<RefRO<ChunkData>, RefRO<PlanetData>, RefRO<NoiseSettings>>()
                 .WithAll<NoiseGenerationRequest>()
                 .WithEntityAccess())
         {
@@ -50,44 +42,26 @@ public partial struct NoiseGenerationSystem : ISystem
             int totalSize = sampleSize * sampleSize * sampleSize;
 
             var noiseValues = new NativeArray<float>(totalSize, Allocator.TempJob);
-
-            int layerCount = layerBuffer.Length;
-            var noiseLayers = new NativeArray<NoiseLayerData>(layerCount, Allocator.TempJob);
-            for (int i = 0; i < layerCount; i++)
-            {
-                var layer = layerBuffer[i];
-                noiseLayers[i] = new NoiseLayerData
-                {
-                    LayerType = layer.LayerType,
-                    BlendMode = layer.BlendMode,
-                    Scale = layer.Scale,
-                    Octaves = layer.Octaves,
-                    Persistence = layer.Persistence,
-                    Lacunarity = layer.Lacunarity,
-                    Strength = layer.Strength,
-                    Offset = layer.Offset,
-                    UseFirstLayerAsMask = layer.UseFirstLayerAsMask
-                };
-            }
-
-            // ★ 옥트리 기반 VoxelSize 계산
             float voxelSize = chunkData.ValueRO.Size / chunkSize;
 
             var job = new PlanetNoiseJob
             {
                 ChunkSize = chunkSize,
                 SampleSize = sampleSize,
-                
-                // ★ 변경: 옥트리 월드 좌표
                 ChunkMin = chunkData.ValueRO.Min,
                 VoxelSize = voxelSize,
-                
+
                 PlanetCenter = planetData.ValueRO.Center,
                 PlanetRadius = planetData.ValueRO.Radius,
-                CoreRadius = planetData.ValueRO.CoreRadius,
-                NoiseLayers = noiseLayers,
-                LayerCount = layerCount,
-                Seed = 0,
+
+                NoiseScale = noiseSettings.ValueRO.Scale,
+                Octaves = noiseSettings.ValueRO.Octaves,
+                Persistence = noiseSettings.ValueRO.Persistence,
+                Lacunarity = noiseSettings.ValueRO.Lacunarity,
+                HeightMultiplier = noiseSettings.ValueRO.HeightMultiplier,
+                Offset = noiseSettings.ValueRO.Offset,
+                Seed = noiseSettings.ValueRO.Seed,
+
                 NoiseValues = noiseValues
             };
 
@@ -97,8 +71,7 @@ public partial struct NoiseGenerationSystem : ISystem
             {
                 JobHandle = jobHandle,
                 Entity = entity,
-                NoiseValues = noiseValues,
-                NoiseLayers = noiseLayers
+                NoiseValues = noiseValues
             });
 
             ecb.SetComponentEnabled<NoiseGenerationRequest>(entity, false);
@@ -111,10 +84,8 @@ public partial struct NoiseGenerationSystem : ISystem
             {
                 jobHandles[i] = newJobs[i].JobHandle;
             }
-
             state.Dependency = JobHandle.CombineDependencies(jobHandles);
             m_NoiseJobResults.AddRange(newJobs.AsArray());
-
             jobHandles.Dispose();
         }
 
@@ -129,5 +100,4 @@ public struct NoiseJobResult
     public JobHandle JobHandle;
     public Entity Entity;
     public NativeArray<float> NoiseValues;
-    public NativeArray<NoiseLayerData> NoiseLayers;
 }

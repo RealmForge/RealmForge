@@ -80,7 +80,7 @@ public partial struct MeshGenerationSystem : ISystem
                 TriTable = triTable,
                 ChunkSize = chunkSize,
                 SampleSize = sampleSize,
-                Threshold = 0.5f,
+                Threshold = 0f,
                 
                 // ★ 변경: 옥트리 기반 값
                 VoxelSize = voxelSize,

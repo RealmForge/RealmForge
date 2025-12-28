@@ -10,28 +10,23 @@ public partial class OctreeChunkSpawnerSystem : SystemBase
     private Entity _planetEntity;
     private bool _initialized;
 
-    // ★ 캐싱용
-    private NativeList<NoiseLayerBuffer> _cachedNoiseLayers;
+    private NoiseSettings _cachedNoiseSettings;
     private PlanetData _cachedPlanetData;
     private PlanetChunkSettings _cachedChunkSettings;
 
     protected override void OnCreate()
     {
         _nodeToEntity = new NativeHashMap<int, Entity>(50000, Allocator.Persistent);
-        _cachedNoiseLayers = new NativeList<NoiseLayerBuffer>(16, Allocator.Persistent);
     }
 
     protected override void OnDestroy()
     {
-        if (_nodeToEntity.IsCreated) 
+        if (_nodeToEntity.IsCreated)
             _nodeToEntity.Dispose();
-        if (_cachedNoiseLayers.IsCreated)
-            _cachedNoiseLayers.Dispose();
     }
 
     protected override void OnUpdate()
     {
-        // ★ Client World에서만 실행 (렌더링은 클라이언트만 가능)
         if (!World.Name.Contains("Client")) return;
 
         if (OctreeManager.Instance == null) return;
@@ -40,22 +35,15 @@ public partial class OctreeChunkSpawnerSystem : SystemBase
         {
             var query = GetEntityQuery(typeof(PlanetTag));
             if (query.CalculateEntityCount() == 0) return;
-            
+
             _planetEntity = query.GetSingletonEntity();
-            
-            // ★ 데이터 캐싱 (한 번만)
+
             _cachedPlanetData = EntityManager.GetComponentData<PlanetData>(_planetEntity);
             _cachedChunkSettings = EntityManager.GetComponentData<PlanetChunkSettings>(_planetEntity);
-            
-            var noiseBuffer = EntityManager.GetBuffer<NoiseLayerBuffer>(_planetEntity);
-            _cachedNoiseLayers.Clear();
-            for (int i = 0; i < noiseBuffer.Length; i++)
-            {
-                _cachedNoiseLayers.Add(noiseBuffer[i]);
-            }
-            
+            _cachedNoiseSettings = EntityManager.GetComponentData<NoiseSettings>(_planetEntity);
+
             _initialized = true;
-            Debug.Log($"[OctreeChunkSpawner] ★ 초기화 완료! NoiseLayer 수: {_cachedNoiseLayers.Length}");
+            Debug.Log($"[OctreeChunkSpawner] Initialized");
         }
 
         var pool = OctreeManager.Instance.GetPool();
@@ -63,13 +51,12 @@ public partial class OctreeChunkSpawnerSystem : SystemBase
 
         int newChunks = 0;
 
-        // 1. 새 리프 노드에 청크 엔티티 생성
         for (int i = 0; i < pool.Capacity; i++)
         {
             if (!pool.IsUsed(i)) continue;
-            
+
             var node = pool.Get(i);
-            
+
             if (!node.IsLeaf) continue;
             if (_nodeToEntity.ContainsKey(i)) continue;
 
@@ -80,12 +67,11 @@ public partial class OctreeChunkSpawnerSystem : SystemBase
 
         if (newChunks > 0)
         {
-            Debug.Log($"[OctreeChunkSpawner] ★ 새 청크: {newChunks}, 총: {_nodeToEntity.Count}");
+            Debug.Log($"[OctreeChunkSpawner] New chunks: {newChunks}, Total: {_nodeToEntity.Count}");
         }
 
-        // 2. 반환된 노드의 청크 엔티티 제거
         var toRemove = new NativeList<int>(Allocator.Temp);
-        
+
         foreach (var kvp in _nodeToEntity)
         {
             if (!pool.IsUsed(kvp.Key) || !pool.Get(kvp.Key).IsLeaf)
@@ -95,10 +81,10 @@ public partial class OctreeChunkSpawnerSystem : SystemBase
                 toRemove.Add(kvp.Key);
             }
         }
-        
+
         foreach (var key in toRemove)
             _nodeToEntity.Remove(key);
-        
+
         toRemove.Dispose();
     }
 
@@ -125,6 +111,7 @@ public partial class OctreeChunkSpawnerSystem : SystemBase
         });
 
         EntityManager.AddComponentData(entity, _cachedPlanetData);
+        EntityManager.AddComponentData(entity, _cachedNoiseSettings);
 
         EntityManager.AddComponent<NoiseGenerationRequest>(entity);
 
@@ -134,13 +121,6 @@ public partial class OctreeChunkSpawnerSystem : SystemBase
         EntityManager.AddComponent<NoiseVisualizationReady>(entity);
         EntityManager.SetComponentEnabled<NoiseVisualizationReady>(entity, false);
 
-        // ★ 캐싱된 데이터에서 복사
-        var destBuffer = EntityManager.AddBuffer<NoiseLayerBuffer>(entity);
-        for (int i = 0; i < _cachedNoiseLayers.Length; i++)
-        {
-            destBuffer.Add(_cachedNoiseLayers[i]);
-        }
-        
         EntityManager.AddBuffer<NoiseDataBuffer>(entity);
 
         return entity;
@@ -150,6 +130,6 @@ public partial class OctreeChunkSpawnerSystem : SystemBase
     {
         return _nodeToEntity.TryGetValue(nodeIndex, out entity);
     }
-    
+
     public int ActiveChunkCount => _nodeToEntity.Count;
 }

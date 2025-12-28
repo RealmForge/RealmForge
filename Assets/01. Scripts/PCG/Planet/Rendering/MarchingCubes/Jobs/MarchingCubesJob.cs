@@ -95,7 +95,7 @@ public struct MarchingCubesJob : IJob
         int cubeIndex = 0;
         for (int i = 0; i < 8; i++)
         {
-            if (cornerDensities[i] > Threshold)
+            if (cornerDensities[i] < Threshold)
             {
                 cubeIndex |= (1 << i);
             }

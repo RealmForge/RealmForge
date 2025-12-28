@@ -3,26 +3,23 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-/// <summary>
-/// Generates planet terrain using layer-based approach.
-/// ★ 옥트리 기반: ChunkMin + VoxelSize로 월드 좌표 계산
-/// </summary>
 [BurstCompile]
 public struct PlanetNoiseJob : IJobParallelFor
 {
     public int ChunkSize;
     public int SampleSize;
-    
-    // ★ 변경: 옥트리 월드 좌표
     public float3 ChunkMin;
     public float VoxelSize;
 
     public float3 PlanetCenter;
     public float PlanetRadius;
-    public float CoreRadius;
 
-    [ReadOnly] public NativeArray<NoiseLayerData> NoiseLayers;
-    public int LayerCount;
+    public float NoiseScale;
+    public int Octaves;
+    public float Persistence;
+    public float Lacunarity;
+    public float HeightMultiplier;
+    public float3 Offset;
     public int Seed;
 
     [WriteOnly]
@@ -34,114 +31,41 @@ public struct PlanetNoiseJob : IJobParallelFor
         int y = (index / SampleSize) % SampleSize;
         int z = index / (SampleSize * SampleSize);
 
-        // ★ 변경: 옥트리 기반 월드 좌표
         float3 worldPos = ChunkMin + new float3(x, y, z) * VoxelSize;
 
+        // 구형 밀도 (SDF): 음수 = Solid, 양수 = Air
         float distanceFromCenter = math.length(worldPos - PlanetCenter);
-        float sphereSDF;
+        float density = distanceFromCenter - PlanetRadius;
 
-        if (distanceFromCenter > PlanetRadius)
-        {
-            sphereSDF = distanceFromCenter - PlanetRadius;
-        }
-        else
-        {
-            float t = 1f - (distanceFromCenter - CoreRadius) / (PlanetRadius - CoreRadius + 0.001f);
-            t = math.saturate(t);
-            float smooth = t * t * (3f - 2f * t);
-            sphereSDF = math.lerp(-1f, -100f, smooth);
-        }
+        // 릿지 노이즈로 표면 변형
+        float noiseValue = GenerateRidgeNoise(worldPos);
+        density -= noiseValue * HeightMultiplier;
 
-        float accum = 0f;
-        float firstLayerValue = 0f;
-
-        for (int i = 0; i < LayerCount; i++)
-        {
-            NoiseLayerData layer = NoiseLayers[i];
-            float layerValue = 0f;
-
-            if (layer.LayerType == NoiseLayerType.Sphere)
-            {
-                layerValue = sphereSDF;
-            }
-            else if (layer.LayerType == NoiseLayerType.Surface)
-            {
-                float noise01 = GenerateLayerNoise(worldPos, layer);
-                layerValue = (noise01 - 0.5f) * 2f;
-            }
-            else if (layer.LayerType == NoiseLayerType.Cave)
-            {
-                float noise01 = GenerateLayerNoise(worldPos, layer);
-                layerValue = 1.0f - math.abs(noise01 - 0.5f) * 2f;
-                layerValue = math.max(0f, layerValue);
-
-                float rawSDF = distanceFromCenter - PlanetRadius;
-                float depthFactor = math.saturate(-rawSDF / (PlanetRadius * 0.3f));
-                layerValue *= depthFactor;
-            }
-
-            if (i == 0)
-            {
-                if (layer.LayerType == NoiseLayerType.Sphere)
-                {
-                    firstLayerValue = math.saturate(-sphereSDF / PlanetRadius + 0.5f);
-                }
-                else
-                {
-                    firstLayerValue = (layerValue + 1f) * 0.5f;
-                }
-            }
-            else if (layer.UseFirstLayerAsMask)
-            {
-                layerValue *= firstLayerValue;
-            }
-
-            float contribution = layerValue * layer.Strength;
-            if (layer.BlendMode == NoiseBlendMode.Add)
-            {
-                accum += contribution;
-            }
-            else
-            {
-                accum -= contribution;
-            }
-        }
-
-        NoiseValues[index] = math.saturate(-accum);
+        NoiseValues[index] = density;
     }
 
-    private float GenerateLayerNoise(float3 position, NoiseLayerData layer)
+    private float GenerateRidgeNoise(float3 position)
     {
+        float noiseSum = 0f;
         float amplitude = 1f;
-        float frequency = 1f;
-        float noiseHeight = 0f;
+        float frequency = 1f / NoiseScale;
         float maxValue = 0f;
 
-        for (int i = 0; i < layer.Octaves; i++)
+        for (int i = 0; i < Octaves; i++)
         {
-            float3 samplePos = (position + layer.Offset) * frequency / layer.Scale;
-            float perlinValue = noise.snoise(samplePos + Seed);
+            float3 samplePos = (position + Offset) * frequency + Seed;
+            float perlinValue = noise.snoise(samplePos);
 
-            noiseHeight += perlinValue * amplitude;
+            // 릿지 노이즈: 산맥 같은 날카로운 지형
+            float ridgeValue = 1f - math.abs(perlinValue);
+
+            noiseSum += ridgeValue * amplitude;
             maxValue += amplitude;
 
-            amplitude *= layer.Persistence;
-            frequency *= layer.Lacunarity;
+            amplitude *= Persistence;
+            frequency *= Lacunarity;
         }
 
-        return (noiseHeight / maxValue) * 0.5f + 0.5f;
+        return noiseSum / maxValue;
     }
-}
-
-public struct NoiseLayerData
-{
-    public NoiseLayerType LayerType;
-    public NoiseBlendMode BlendMode;
-    public float Scale;
-    public int Octaves;
-    public float Persistence;
-    public float Lacunarity;
-    public float Strength;
-    public float3 Offset;
-    public bool UseFirstLayerAsMask;
 }

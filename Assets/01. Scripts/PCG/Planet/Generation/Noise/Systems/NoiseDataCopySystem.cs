@@ -53,7 +53,6 @@ public partial struct NoiseDataCopySystem : ISystem
 
                 // 메모리 해제
                 if (noiseValues.IsCreated) noiseValues.Dispose();
-                if (jobResult.NoiseLayers.IsCreated) jobResult.NoiseLayers.Dispose();
 
                 // 리스트에서 제거 및 다음 단계 신호
                 noiseJobsList.RemoveAtSwapBack(i);

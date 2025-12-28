@@ -2,15 +2,21 @@ using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
-/// <summary>
-/// 서브씬 없이 런타임에 직접 Planet 엔티티 생성
-/// </summary>
 public class PlanetEntitySpawner : MonoBehaviour
 {
     [Header("Planet Settings")]
     public float3 center = float3.zero;
     public float radius = 64f;
-    public float coreRadius = 10f;
+
+    [Header("Noise Settings")]
+    public float noiseScale = 50f;
+    public int octaves = 6;
+    [Range(0f, 1f)]
+    public float persistence = 0.5f;
+    public float lacunarity = 2f;
+    public float heightMultiplier = 10f;
+    public float3 offset = float3.zero;
+    public int seed = 0;
 
     [Header("Chunk Settings")]
     public int chunkSize = 16;
@@ -21,12 +27,11 @@ public class PlanetEntitySpawner : MonoBehaviour
 
     void Start()
     {
-        Invoke(nameof(SpawnPlanetEntity), 0.1f);  // 약간 딜레이
+        Invoke(nameof(SpawnPlanetEntity), 0.1f);
     }
 
     void SpawnPlanetEntity()
     {
-        // ★ Client World에 생성 (렌더링용)
         World world = null;
         foreach (var w in World.All)
         {
@@ -37,7 +42,6 @@ public class PlanetEntitySpawner : MonoBehaviour
             }
         }
 
-        // Client World가 없으면 기본 World 사용
         if (world == null)
             world = World.DefaultGameObjectInjectionWorld;
 
@@ -46,22 +50,19 @@ public class PlanetEntitySpawner : MonoBehaviour
         _targetWorld = world;
         var em = world.EntityManager;
 
-        // Archetype으로 한 번에 생성
         var archetype = em.CreateArchetype(
             typeof(PlanetTag),
             typeof(PlanetData),
             typeof(PlanetChunkSettings),
-            typeof(NoiseLayerBuffer)
+            typeof(NoiseSettings)
         );
 
         _planetEntity = em.CreateEntity(archetype);
 
-        // 값 설정
         em.SetComponentData(_planetEntity, new PlanetData
         {
             Center = center,
-            Radius = radius,
-            CoreRadius = coreRadius
+            Radius = radius
         });
 
         em.SetComponentData(_planetEntity, new PlanetChunkSettings
@@ -69,37 +70,19 @@ public class PlanetEntitySpawner : MonoBehaviour
             ChunkSize = chunkSize
         });
 
-        // 버퍼는 이미 생성됨, 값만 추가
-        var buffer = em.GetBuffer<NoiseLayerBuffer>(_planetEntity);
-        
-        buffer.Add(new NoiseLayerBuffer
+        em.SetComponentData(_planetEntity, new NoiseSettings
         {
-            LayerType = NoiseLayerType.Sphere,
-            BlendMode = NoiseBlendMode.Subtract,
-            Strength = 1f,
-            Scale = 1f,
-            Octaves = 1,
-            Persistence = 0.5f,
-            Lacunarity = 2f,
-            Offset = float3.zero,
-            UseFirstLayerAsMask = false
-        });
-
-        buffer.Add(new NoiseLayerBuffer
-        {
-            LayerType = NoiseLayerType.Surface,
-            BlendMode = NoiseBlendMode.Subtract,
-            Scale = 50f,
-            Octaves = 4,
-            Persistence = 0.5f,
-            Lacunarity = 2f,
-            Strength = 5f,
-            Offset = float3.zero,
-            UseFirstLayerAsMask = true
+            Scale = noiseScale,
+            Octaves = octaves,
+            Persistence = persistence,
+            Lacunarity = lacunarity,
+            HeightMultiplier = heightMultiplier,
+            Offset = offset,
+            Seed = seed
         });
 
         _spawned = true;
-        Debug.Log($"[PlanetEntitySpawner] ★ Planet 엔티티 생성 완료! Center={center}, Radius={radius}");
+        Debug.Log($"[PlanetEntitySpawner] Planet entity created. Center={center}, Radius={radius}");
     }
 
     void OnDestroy()

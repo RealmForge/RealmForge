@@ -324,9 +324,18 @@ MonoBehaviour:
     x: 0
     y: 0
     z: 0
-  radius: 100
-  coreRadius: 10
-  chunkSize: 16
+  radius: 64
+  noiseScale: 50
+  octaves: 6
+  persistence: 0.5
+  lacunarity: 2
+  heightMultiplier: 20
+  offset:
+    x: 0
+    y: 0
+    z: 0
+  seed: 0
+  chunkSize: 32
 --- !u!4 &548911140
 Transform:
   m_ObjectHideFlags: 0
