@@ -6,16 +6,8 @@
   <component name="ChangeListManager">
     <list default="true" id="0b82a9c4-9099-46bc-8b08-31f2081a5886" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.RealmForge/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.RealmForge/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/00. Scenes/GameScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/00. Scenes/GameScene.unity" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/00. Scenes/InGameScene/New Sub Scene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/00. Scenes/InGameScene/New Sub Scene.unity" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/00. Scenes/Lobby.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/00. Scenes/Lobby.unity" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/Network/GoInGameServerSystem.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/01. Scripts/Game/Network/GoInGameServerSystem.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/PlayerAuthoring.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/01. Scripts/Game/PlayerAuthoring.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Session/NetcodeWorldHelper.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/01. Scripts/Session/NetcodeWorldHelper.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Session/SessionManager.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/01. Scripts/Session/SessionManager.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/02. Prefab/InGame/Player.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/02. Prefab/InGame/Player.prefab" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/02. Prefab/Player.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/02. Prefab/Player.prefab" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ProjectSettings/URPProjectSettings.asset" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/URPProjectSettings.asset" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -179,7 +171,7 @@
       <workItem from="1766858785671" duration="1761000" />
       <workItem from="1766860883021" duration="1407000" />
       <workItem from="1766868716681" duration="718000" />
-      <workItem from="1766917927576" duration="4159000" />
+      <workItem from="1766917927576" duration="5131000" />
     </task>
     <servers />
   </component>

@@ -98,9 +98,9 @@ partial struct GoInGameServerSystem : ISystem
     /// </summary>
     private float3 CalculateSafeSpawnPosition(ref SystemState state, float3 desiredPosition)
     {
-        const float DEFAULT_SPAWN_HEIGHT = 50f; // 기본 스폰 높이
+        const float DEFAULT_SPAWN_HEIGHT = 3f; // 기본 스폰 높이 (지면 위 3m)
         const float ESTIMATED_PLANET_RADIUS = 100f; // 예상 행성 반지름
-        const float SURFACE_OFFSET = 2f; // 지면 위 여유 높이
+        const float SURFACE_OFFSET = 1f; // 지면 위 여유 높이 (1m)
         const float MAX_RAYCAST_DISTANCE = 500f; // Raycast 최대 거리
 
         // 행성 찾기
@@ -140,9 +140,13 @@ partial struct GoInGameServerSystem : ISystem
             spawnDirection = new float3(0, 1, 0);
         }
 
+        Debug.Log($"[GoInGameServer] Planet center: {planet.Center}, Spawn direction: {spawnDirection}");
+
         // 행성 중심에서 바깥쪽으로 Raycast (지면 찾기)
         float3 rayStart = planet.Center;
         float3 rayEnd = planet.Center + spawnDirection * MAX_RAYCAST_DISTANCE;
+
+        Debug.Log($"[GoInGameServer] Raycast from {rayStart} to {rayEnd}, distance: {MAX_RAYCAST_DISTANCE}");
 
         var rayInput = new RaycastInput
         {
@@ -154,16 +158,34 @@ partial struct GoInGameServerSystem : ISystem
         // Raycast로 지면 찾기
         if (physicsWorld.CastRay(rayInput, out var hit))
         {
+            // hit.Fraction을 사용해서 실제 hit 위치 계산
+            float3 hitPosition = math.lerp(rayStart, rayEnd, hit.Fraction);
+
+            // SurfaceNormal이 행성 바깥쪽을 향하도록 보정
+            float3 surfaceNormal = hit.SurfaceNormal;
+            float3 toCenter = planet.Center - hitPosition;
+
+            // Normal이 행성 중심을 향하면 (안쪽을 향하면) 반대로 뒤집기
+            if (math.dot(surfaceNormal, toCenter) > 0)
+            {
+                surfaceNormal = -surfaceNormal;
+                Debug.Log("[GoInGameServer] Surface normal was pointing inward, flipped it");
+            }
+
             // 지면을 찾았으면 표면 위에 스폰
-            float3 safePosition = hit.Position + hit.SurfaceNormal * SURFACE_OFFSET;
-            Debug.Log($"[GoInGameServer] Spawn position found via raycast: {safePosition}, distance from center: {math.length(safePosition - planet.Center)}");
+            float3 safePosition = hitPosition + surfaceNormal * SURFACE_OFFSET;
+
+            float distanceFromCenter = math.length(safePosition - planet.Center);
+            Debug.Log($"[GoInGameServer] Raycast hit! Fraction: {hit.Fraction}, Hit position: {hitPosition}, Surface normal: {surfaceNormal}, Safe spawn: {safePosition}, Distance from center: {distanceFromCenter}");
+
             return safePosition;
         }
         else
         {
-            // 지면을 못 찾았으면 예상 반지름 + 기본 높이
-            float3 fallbackPosition = planet.Center + spawnDirection * (ESTIMATED_PLANET_RADIUS + DEFAULT_SPAWN_HEIGHT);
-            Debug.LogWarning($"[GoInGameServer] Raycast failed! Using fallback position: {fallbackPosition}");
+            // 지면을 못 찾았으면 행성 중심에서 스폰 방향으로 충분히 먼 거리
+            // 대부분의 행성 표면보다 높은 위치 (50m)
+            float3 fallbackPosition = planet.Center + spawnDirection * 50f;
+            Debug.LogWarning($"[GoInGameServer] Raycast failed! Using fallback position: {fallbackPosition} (Planet center + 50m upward)");
             return fallbackPosition;
         }
     }
