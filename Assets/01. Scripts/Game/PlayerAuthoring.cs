@@ -1,6 +1,7 @@
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Physics;
+using Unity.Transforms;
 using Unity.Services.Matchmaker.Models;
 using UnityEngine;
 using RealmForge.Game.UI;
@@ -17,6 +18,9 @@ public class PlayerAuthoring : MonoBehaviour
 
     [Tooltip("점프 힘")]
     public float jumpForce = 8f;
+    
+    [Header("Appearance")]
+    public GameObject eyeObject;
 
     public class Baker : Baker<PlayerAuthoring>
     {
@@ -59,6 +63,31 @@ public class PlayerAuthoring : MonoBehaviour
                 DisplayName = new Unity.Collections.FixedString64Bytes("Unknown"),
                 NetworkId = 0
             });
+            
+            // 눈 오브젝트 처리
+            if (authoring.eyeObject != null)
+            {
+                Debug.Log($"[PlayerAuthoring] Eye object found: {authoring.eyeObject.name}");
+
+                // 자식 엔티티 생성 (TransformUsageFlags로 렌더링 및 변환 활성화)
+                // Unity가 Transform 계층 구조를 보고 자동으로 Parent 컴포넌트를 설정함
+                Entity eyeEntity = GetEntity(authoring.eyeObject, TransformUsageFlags.Dynamic | TransformUsageFlags.Renderable);
+
+                Debug.Log($"[PlayerAuthoring] Eye entity created: {eyeEntity.Index}:{eyeEntity.Version}");
+
+                // LinkedEntityGroup에 자식 추가 (네트워크 동기화 및 Instantiate 시 복사를 위해)
+                var linkedEntityGroup = AddBuffer<LinkedEntityGroup>(entity);
+                linkedEntityGroup.Add(new LinkedEntityGroup { Value = entity }); // 자기 자신
+                linkedEntityGroup.Add(new LinkedEntityGroup { Value = eyeEntity }); // 눈 엔티티
+
+                DependsOn(authoring.eyeObject);
+
+                Debug.Log("[PlayerAuthoring] Eye entity setup complete with LinkedEntityGroup");
+            }
+            else
+            {
+                Debug.LogWarning("[PlayerAuthoring] Eye object is NULL! Please assign it in the inspector.");
+            }
         }
     }
 }

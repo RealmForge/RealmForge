@@ -199,7 +199,8 @@ namespace RealmForge.Session
             try
             {
                 // 1. Relay 할당 및 Join Code 획득
-                var maxConnections = Session.Config.MaxPlayers - 1; // 호스트 제외
+                // 호스트도 클라이언트로 연결하므로 MaxPlayers만큼 연결 필요
+                var maxConnections = Session.Config.MaxPlayers;
                 var relayResult = await RelayServiceHelper.AllocateRelayServerAsync(maxConnections);
 
                 if (!relayResult.HasValue)

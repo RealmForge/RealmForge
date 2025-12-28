@@ -64,6 +64,14 @@ namespace RealmForge.Session
 
             // Relay 드라이버 (외부 연결용)
             var relaySettings = DefaultDriverBuilder.GetNetworkServerSettings();
+
+            // 연결 타임아웃 설정 증가 (기본값보다 더 여유롭게)
+            relaySettings = relaySettings.WithNetworkConfigParameters(
+                connectTimeoutMS: 10000,      // 연결 타임아웃: 10초 (기본값: 1000ms)
+                maxConnectAttempts: 60,       // 최대 연결 시도: 60회
+                disconnectTimeoutMS: 30000    // 연결 끊김 판정: 30초 (기본값: 30000ms)
+            );
+
             var relayData = relayServerData;
             relaySettings = relaySettings.WithRelayParameters(ref relayData);
 
@@ -113,6 +121,14 @@ namespace RealmForge.Session
             var netDebug = netDebugQuery.GetSingleton<NetDebug>();
 
             var settings = DefaultDriverBuilder.GetNetworkClientSettings();
+
+            // 연결 타임아웃 설정 증가 (기본값보다 더 여유롭게)
+            settings = settings.WithNetworkConfigParameters(
+                connectTimeoutMS: 10000,      // 연결 타임아웃: 10초 (기본값: 1000ms)
+                maxConnectAttempts: 60,       // 최대 연결 시도: 60회
+                disconnectTimeoutMS: 30000    // 연결 끊김 판정: 30초 (기본값: 30000ms)
+            );
+
             var relayData = relayClientData;
             settings = settings.WithRelayParameters(ref relayData);
 
