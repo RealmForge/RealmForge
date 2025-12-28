@@ -1,4 +1,3 @@
-using System;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
@@ -8,115 +7,70 @@ public class PlanetAuthoring : MonoBehaviour
     [Header("Planet Settings")]
     public float3 center = float3.zero;
     public float radius = 50f;
-    [Tooltip("핵 반경. 이 안쪽은 동굴이 생기지 않음")]
-    public float coreRadius = 20f;
 
-    [Header("Layers")]
-    public NoiseLayerSettings[] noiseLayers = new NoiseLayerSettings[]
-    {
-        // Layer 0: Sphere (기본 형태)
-        new NoiseLayerSettings
-        {
-            layerType = NoiseLayerType.Sphere,
-            blendMode = NoiseBlendMode.Subtract,
-            strength = 1f
-        },
-        // Layer 1: Surface Noise
-        new NoiseLayerSettings
-        {
-            layerType = NoiseLayerType.Surface,
-            blendMode = NoiseBlendMode.Subtract,
-            scale = 50f,
-            octaves = 4,
-            persistence = 0.5f,
-            lacunarity = 2f,
-            strength = 5f,
-            offset = float3.zero,
-            useFirstLayerAsMask = true
-        }
-    };
+    [Header("Surface Noise")]
+    public float noiseScale = 50f;
+    public int octaves = 6;
+    [Range(0f, 1f)]
+    public float persistence = 0.5f;
+    public float lacunarity = 2f;
+    public float heightMultiplier = 10f;
+    public float3 offset = float3.zero;
+    public int seed = 0;
+
+    [Header("Cave")]
+    public float caveScale = 30f;
+    public int caveOctaves = 3;
+    [Range(0f, 1f)]
+    public float caveThreshold = 0.5f;
+    public float caveStrength = 20f;
+    public float caveMaxDepth = 30f;
 
     [Header("Chunk Settings")]
     public int chunkSize = 16;
-    public int3 startChunkGrid = new int3(-2, -2, -2);
-    public int3 endChunkGrid = new int3(1, 1, 1);
 
     class Baker : Baker<PlanetAuthoring>
     {
         public override void Bake(PlanetAuthoring authoring)
         {
-            for (int x = authoring.startChunkGrid.x; x < authoring.endChunkGrid.x; x++)
+            var entity = GetEntity(TransformUsageFlags.None);
+
+            AddComponent(entity, new PlanetData
             {
-                for (int y = authoring.startChunkGrid.y; y < authoring.endChunkGrid.y; y++)
-                {
-                    for (int z = authoring.startChunkGrid.z; z < authoring.endChunkGrid.z; z++)
-                    {
-                        var entity = CreateAdditionalEntity(TransformUsageFlags.None);
+                Center = authoring.center,
+                Radius = authoring.radius
+            });
 
-                        // Chunk data
-                        AddComponent(entity, new ChunkData
-                        {
-                            ChunkPosition = new int3(x, y, z),
-                            ChunkSize = authoring.chunkSize
-                        });
+            AddComponent(entity, new NoiseSettings
+            {
+                Scale = authoring.noiseScale,
+                Octaves = authoring.octaves,
+                Persistence = authoring.persistence,
+                Lacunarity = authoring.lacunarity,
+                HeightMultiplier = authoring.heightMultiplier,
+                Offset = authoring.offset,
+                Seed = authoring.seed,
 
-                        // Planet data
-                        AddComponent(entity, new PlanetData
-                        {
-                            Center = authoring.center,
-                            Radius = authoring.radius,
-                            CoreRadius = authoring.coreRadius
-                        });
+                CaveScale = authoring.caveScale,
+                CaveOctaves = authoring.caveOctaves,
+                CaveThreshold = authoring.caveThreshold,
+                CaveStrength = authoring.caveStrength,
+                CaveMaxDepth = authoring.caveMaxDepth
+            });
 
-                        // Noise layers buffer
-                        var layerBuffer = AddBuffer<NoiseLayerBuffer>(entity);
-                        foreach (var layer in authoring.noiseLayers)
-                        {
-                            layerBuffer.Add(new NoiseLayerBuffer
-                            {
-                                LayerType = layer.layerType,
-                                BlendMode = layer.blendMode,
-                                Scale = layer.scale,
-                                Octaves = layer.octaves,
-                                Persistence = layer.persistence,
-                                Lacunarity = layer.lacunarity,
-                                Strength = layer.strength,
-                                Offset = layer.offset,
-                                UseFirstLayerAsMask = layer.useFirstLayerAsMask
-                            });
-                        }
+            AddComponent(entity, new PlanetChunkSettings
+            {
+                ChunkSize = authoring.chunkSize
+            });
 
-                        // Noise generation request (Enabled = start immediately)
-                        AddComponent(entity, new NoiseGenerationRequest());
-
-                        // Mesh generation request (Disabled = not ready yet)
-                        AddComponent(entity, new MeshGenerationRequest());
-                        SetComponentEnabled<MeshGenerationRequest>(entity, false);
-
-                        // Debug visualization ready (Disabled = not ready yet)
-                        AddComponent(entity, new NoiseVisualizationReady());
-                        SetComponentEnabled<NoiseVisualizationReady>(entity, false);
-
-                        // Noise data buffer
-                        AddBuffer<NoiseDataBuffer>(entity);
-                    }
-                }
-            }
+            AddComponent<PlanetTag>(entity);
         }
     }
 }
 
-[Serializable]
-public class NoiseLayerSettings
+public struct PlanetTag : IComponentData { }
+
+public struct PlanetChunkSettings : IComponentData
 {
-    public NoiseLayerType layerType = NoiseLayerType.Surface;
-    public NoiseBlendMode blendMode = NoiseBlendMode.Subtract;
-    public float scale = 50f;
-    public int octaves = 4;
-    [Range(0f, 1f)]
-    public float persistence = 0.5f;
-    public float lacunarity = 2f;
-    public float strength = 1f;
-    public float3 offset = float3.zero;
-    public bool useFirstLayerAsMask = false;
+    public int ChunkSize;
 }
