@@ -1,8 +1,8 @@
-// OctreeManager.cs - 매 프레임 분할
-using Unity.Burst;
+// OctreeManager.cs - Burst + Job System
 using Unity.Collections;
-using Unity.Jobs;
 using Unity.Mathematics;
+using Unity.Jobs;
+using Unity.Burst;
 using UnityEngine;
 
 public class OctreeManager : MonoBehaviour
@@ -14,17 +14,30 @@ public class OctreeManager : MonoBehaviour
     [Header("타겟")]
     public Transform target;
     
-    [HideInInspector] public int baseSubdivisionDepth = 3;
-    [HideInInspector] public int activeTrackingDepth = 4;
-    [HideInInspector] public int neighborPreloadDepth = 5;
-    [HideInInspector] public float thetaThreshold = 1.0f;
+    [Header("거리 기반 LOD")]
+    [Range(1, 12)]
+    public int maxLodDepth = 6;
+    [Range(1, 8)]
+    public int minLodDepth = 2;
+    public float lodStepDistance = 50f;
+    
+    [Header("경계 설정")]
+    [Range(0.01f, 0.5f)]
+    public float boundaryThreshold = 0.2f;
     
     private OctreeNodePool _pool;
     private int _rootIndex = -1;
     private int _playerNodeIndex = -1;
     
-    // 디버깅
+    // Job용 버퍼
+    private NativeArray<int> _targetDepths;
+    private NativeList<int> _traversalStack;
+    private NativeArray<int> _mergeWorkStack;
+    private NativeList<int> _nodesToSubdivide;
+    private NativeList<int> _nodesToMerge;
+    
     public int LastSubdivisions { get; private set; }
+    public int LastMerges { get; private set; }
     public int PlayerNodeDepth { get; private set; }
     
     public static OctreeManager Instance { get; private set; }
@@ -32,10 +45,6 @@ public class OctreeManager : MonoBehaviour
     public int UsedNodeCount => _pool.UsedCount;
     public int FreeNodeCount => _pool.FreeCount;
     public int RootIndex => _rootIndex;
-    public float ActiveCellSize => rootSize * 2f;
-    public Vector3 ActiveCellMin => Vector3.zero;
-    public Vector3 ActiveCellMax => Vector3.one * rootSize * 2f;
-    
     public OctreeNodePool GetPool() => _pool;
 
     void Awake()
@@ -43,11 +52,22 @@ public class OctreeManager : MonoBehaviour
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
     }
+    
+    void OnValidate()
+    {
+        if (minLodDepth > maxLodDepth) minLodDepth = maxLodDepth;
+        if (maxLodDepth > maxDepth) maxLodDepth = maxDepth;
+    }
 
     void Start()
     {
         int capacity = 500000;
         _pool = new OctreeNodePool(capacity, Allocator.Persistent);
+        _targetDepths = new NativeArray<int>(capacity, Allocator.Persistent);
+        _traversalStack = new NativeList<int>(4096, Allocator.Persistent);
+        _mergeWorkStack = new NativeArray<int>(4096, Allocator.Persistent);
+        _nodesToSubdivide = new NativeList<int>(1024, Allocator.Persistent);
+        _nodesToMerge = new NativeList<int>(1024, Allocator.Persistent);
         
         if (target == null)
         {
@@ -75,8 +95,6 @@ public class OctreeManager : MonoBehaviour
         root.Center = center;
         root.Size = rootSize * 2f;
         _pool.Set(_rootIndex, root);
-        
-        Debug.Log($"Octree 빌드: 센터={center}");
     }
 
     void Update()
@@ -85,92 +103,190 @@ public class OctreeManager : MonoBehaviour
         
         float3 targetPos = new float3(target.position.x, target.position.y, target.position.z);
         
-        // 루트 범위 체크
         if (!IsInsideRoot(target.position))
         {
-            Debug.Log($"루트 범위 벗어남 → 재구성");
+            Debug.Log("루트 범위 벗어남 → 재구성");
             ClearAllNodes();
             BuildOctree(target.position);
             return;
         }
         
-        // ★ 매 프레임 플레이어 위치로 분할
-        SubdivideTowardsPlayer(targetPos);
+        UpdateWithJobs(targetPos);
     }
     
-    /// <summary>
-    /// 루트부터 플레이어 위치까지 분할 (메인 스레드에서 직접 실행)
-    /// </summary>
-    void SubdivideTowardsPlayer(float3 targetPos)
+    void UpdateWithJobs(float3 targetPos)
     {
-        int currentIdx = _rootIndex;
-        int subdivisions = 0;
-        
-        while (currentIdx != -1)
+        // 1단계: 병렬로 모든 노드의 목표 깊이 계산
+        var calcJob = new CalculateTargetDepthJob
         {
+            Nodes = _pool.Nodes,
+            IsUsedFlags = _pool.IsUsedFlags,
+            TargetPos = targetPos,
+            MaxLodDepth = maxLodDepth,
+            MinLodDepth = minLodDepth,
+            LodStepDistance = lodStepDistance,
+            BoundaryThreshold = boundaryThreshold,
+            TargetDepths = _targetDepths
+        };
+        
+        var calcHandle = calcJob.Schedule(_pool.Capacity, 256);
+        calcHandle.Complete();
+        
+        // 2단계: 메인 스레드에서 분할/병합 결정 및 실행
+        ProcessNodesMainThread(targetPos);
+    }
+    
+    void ProcessNodesMainThread(float3 targetPos)
+    {
+        int subdivisions = 0;
+        int merges = 0;
+        
+        _traversalStack.Clear();
+        _traversalStack.Add(_rootIndex);
+        
+        while (_traversalStack.Length > 0)
+        {
+            int currentIdx = _traversalStack[_traversalStack.Length - 1];
+            _traversalStack.RemoveAt(_traversalStack.Length - 1);
+            
+            if (!_pool.IsUsed(currentIdx)) continue;
+            
             var node = _pool.Get(currentIdx);
+            int targetDepth = _targetDepths[currentIdx];
             
-            // 최대 깊이 도달
-            if (node.Depth >= maxDepth)
+            if (targetDepth < 0) continue;
+            
+            // 플레이어 노드 추적
+            if (OctreeNode.ContainsPoint(node.Center, node.Size, targetPos) && node.IsLeaf)
             {
                 _playerNodeIndex = currentIdx;
                 PlayerNodeDepth = node.Depth;
-                break;
             }
             
-            // 리프면 분할
-            if (node.IsLeaf)
+            // 분할/병합 결정
+            if (node.Depth < targetDepth)
             {
-                if (!_pool.Subdivide(currentIdx))
+                if (node.IsLeaf)
                 {
-                    Debug.LogWarning($"분할 실패: depth={node.Depth}, freeCount={_pool.FreeCount}");
-                    _playerNodeIndex = currentIdx;
-                    PlayerNodeDepth = node.Depth;
-                    break;
+                    if (_pool.Subdivide(currentIdx))
+                    {
+                        subdivisions++;
+                        node = _pool.Get(currentIdx);
+                    }
                 }
-                subdivisions++;
-                node = _pool.Get(currentIdx);  // 분할 후 다시 가져오기
+                
+                if (!node.IsLeaf)
+                {
+                    AddChildrenToStack(node);
+                }
             }
-            
-            // 타겟이 포함된 자식 찾기
-            int octant = GetOctant(node.Center, targetPos);
-            int childIdx = node.GetChild(octant);
-            
-            if (childIdx == -1 || !_pool.IsUsed(childIdx))
+            else if (node.Depth > targetDepth && !node.IsLeaf)
             {
-                Debug.LogWarning($"자식 없음: octant={octant}, childIdx={childIdx}");
-                _playerNodeIndex = currentIdx;
-                PlayerNodeDepth = node.Depth;
-                break;
+                if (TryMergeCompletely(currentIdx, targetPos))
+                {
+                    merges++;
+                    _traversalStack.Add(currentIdx);
+                }
+                else
+                {
+                    AddChildrenToStack(node);
+                }
             }
-            
-            currentIdx = childIdx;
+            else if (node.Depth == targetDepth)
+            {
+                if (!node.IsLeaf)
+                {
+                    if (TryMergeCompletely(currentIdx, targetPos))
+                    {
+                        merges++;
+                    }
+                    else
+                    {
+                        AddChildrenToStack(node);
+                    }
+                }
+            }
         }
         
         LastSubdivisions = subdivisions;
+        LastMerges = merges;
     }
     
-    int GetOctant(float3 nodeCenter, float3 position)
+    bool TryMergeCompletely(int nodeIdx, float3 targetPos)
     {
-        int octant = 0;
-        if (position.x >= nodeCenter.x) octant |= 1;
-        if (position.y >= nodeCenter.y) octant |= 2;
-        if (position.z >= nodeCenter.z) octant |= 4;
-        return octant;
+        if (!_pool.IsUsed(nodeIdx)) return false;
+        
+        var node = _pool.Get(nodeIdx);
+        if (node.IsLeaf) return true;
+        
+        if (OctreeNode.ContainsPoint(node.Center, node.Size, targetPos))
+        {
+            int playerOctant = OctreeNode.GetOctant(node.Center, targetPos);
+            int playerChildIdx = node.GetChild(playerOctant);
+            
+            if (playerChildIdx != -1 && _pool.IsUsed(playerChildIdx))
+            {
+                var playerChild = _pool.Get(playerChildIdx);
+                int childTargetDepth = _targetDepths[playerChildIdx];
+                
+                if (playerChild.Depth < childTargetDepth)
+                {
+                    return false;
+                }
+            }
+        }
+        
+        for (int i = 0; i < 8; i++)
+        {
+            int childIdx = node.GetChild(i);
+            if (childIdx != -1 && _pool.IsUsed(childIdx))
+            {
+                var child = _pool.Get(childIdx);
+                if (!child.IsLeaf)
+                {
+                    int childTarget = _targetDepths[childIdx];
+                    if (child.Depth >= childTarget)
+                    {
+                        TryMergeCompletely(childIdx, targetPos);
+                    }
+                }
+            }
+        }
+        
+        node = _pool.Get(nodeIdx);
+        for (int i = 0; i < 8; i++)
+        {
+            int childIdx = node.GetChild(i);
+            if (childIdx != -1 && _pool.IsUsed(childIdx))
+            {
+                if (!_pool.Get(childIdx).IsLeaf)
+                {
+                    return false;
+                }
+            }
+        }
+        
+        return _pool.Merge(nodeIdx, ref _mergeWorkStack);
+    }
+    
+    void AddChildrenToStack(OctreeNode node)
+    {
+        for (int i = 0; i < 8; i++)
+        {
+            int childIdx = node.GetChild(i);
+            if (childIdx != -1 && _pool.IsUsed(childIdx))
+            {
+                _traversalStack.Add(childIdx);
+            }
+        }
     }
     
     public bool IsInsideRoot(Vector3 pos)
     {
         if (_rootIndex == -1) return false;
         var root = _pool.Get(_rootIndex);
-        root.GetAABB(out float3 rootMin, out float3 rootMax);
-        
-        return pos.x >= rootMin.x && pos.x <= rootMax.x &&
-               pos.y >= rootMin.y && pos.y <= rootMax.y &&
-               pos.z >= rootMin.z && pos.z <= rootMax.z;
+        return OctreeNode.ContainsPoint(root.Center, root.Size, new float3(pos.x, pos.y, pos.z));
     }
-    
-    public bool IsInsideActiveCell(Vector3 pos) => IsInsideRoot(pos);
     
     void ClearAllNodes()
     {
@@ -186,5 +302,20 @@ public class OctreeManager : MonoBehaviour
     void OnDestroy()
     {
         _pool.Dispose();
+        if (_targetDepths.IsCreated) _targetDepths.Dispose();
+        if (_traversalStack.IsCreated) _traversalStack.Dispose();
+        if (_mergeWorkStack.IsCreated) _mergeWorkStack.Dispose();
+        if (_nodesToSubdivide.IsCreated) _nodesToSubdivide.Dispose();
+        if (_nodesToMerge.IsCreated) _nodesToMerge.Dispose();
+    }
+    
+    void OnGUI()
+    {
+        GUILayout.BeginArea(new Rect(10, 10, 300, 150));
+        GUILayout.Label($"Player Depth: {PlayerNodeDepth}");
+        GUILayout.Label($"Subdivisions: {LastSubdivisions}");
+        GUILayout.Label($"Merges: {LastMerges}");
+        GUILayout.Label($"Used Nodes: {UsedNodeCount}");
+        GUILayout.EndArea();
     }
 }

@@ -5,10 +5,8 @@ using Unity.Jobs;
 using Unity.Mathematics;
 
 /// <summary>
-/// Schedules MarchingCubesJob for entities with MeshGenerationRequest flag.
-/// Stores job results for MeshApplySystem to process.
+/// ★ 옥트리 기반: ChunkData.Min, ChunkData.Size로 VoxelSize 계산
 /// </summary>
-
 [UpdateAfter(typeof(NoiseDataCopySystem))]
 [BurstCompile]
 public partial struct MeshGenerationSystem : ISystem
@@ -24,7 +22,6 @@ public partial struct MeshGenerationSystem : ISystem
 
         MeshJobResults = new NativeList<MeshJobResult>(Allocator.Persistent);
 
-        // Initialize lookup tables
         edgeTable = new NativeArray<int>(MarchingCubesTables.EdgeTable, Allocator.Persistent);
         triTable = new NativeArray<int>(MarchingCubesTables.TriTable, Allocator.Persistent);
     }
@@ -33,17 +30,17 @@ public partial struct MeshGenerationSystem : ISystem
     {
         state.Dependency.Complete();
 
-        // Dispose all pending job results
         for (int i = 0; i < MeshJobResults.Length; i++)
         {
             var result = MeshJobResults[i];
             if (result.Vertices.IsCreated) result.Vertices.Dispose();
             if (result.Normals.IsCreated) result.Normals.Dispose();
             if (result.Indices.IsCreated) result.Indices.Dispose();
+            if (result.Colors.IsCreated) result.Colors.Dispose();
+            if (result.TerrainLayers.IsCreated) result.TerrainLayers.Dispose();
         }
         MeshJobResults.Dispose();
 
-        // Dispose lookup tables
         if (edgeTable.IsCreated) edgeTable.Dispose();
         if (triTable.IsCreated) triTable.Dispose();
     }
@@ -53,25 +50,20 @@ public partial struct MeshGenerationSystem : ISystem
         var ecb = new EntityCommandBuffer(Allocator.Temp);
         var newJobs = new NativeList<MeshJobResult>(Allocator.Temp);
 
-        // Process entities with MeshGenerationRequest flag
-        foreach (var (chunkData, noiseBuffer, entity) in
-            SystemAPI.Query<RefRO<ChunkData>, DynamicBuffer<NoiseDataBuffer>>()
+        foreach (var (chunkData, planetData, noiseBuffer, terrainBuffer, entity) in
+            SystemAPI.Query<RefRO<ChunkData>, RefRO<PlanetData>, DynamicBuffer<NoiseDataBuffer>, DynamicBuffer<TerrainLayerBuffer>>()
                 .WithAll<MeshGenerationRequest>()
                 .WithEntityAccess())
         {
             int chunkSize = chunkData.ValueRO.ChunkSize;
-            int sampleSize = chunkSize + 1;  // NoiseData is (ChunkSize+1)^3
+            int sampleSize = chunkSize + 1;
 
-            // Copy noise data to NativeArray for job
             var noiseData = new NativeArray<float>(noiseBuffer.Length, Allocator.TempJob);
             for (int i = 0; i < noiseBuffer.Length; i++)
             {
                 noiseData[i] = noiseBuffer[i].Value;
             }
 
-            // Allocate output lists
-            // Max triangles: 5 per cube, 3 vertices per triangle
-            // Now we have ChunkSize^3 cubes (not ChunkSize-1)
             int maxCubes = chunkSize * chunkSize * chunkSize;
             int maxTriangles = maxCubes * 5;
             int maxVertices = maxTriangles * 3;
@@ -79,8 +71,16 @@ public partial struct MeshGenerationSystem : ISystem
             var vertices = new NativeList<float3>(maxVertices, Allocator.TempJob);
             var normals = new NativeList<float3>(maxVertices, Allocator.TempJob);
             var indices = new NativeList<int>(maxVertices, Allocator.TempJob);
+            var colors = new NativeList<float4>(maxVertices, Allocator.TempJob);
 
-            // Schedule job
+            var terrainLayers = new NativeArray<TerrainLayerBuffer>(terrainBuffer.Length, Allocator.TempJob);
+            for (int i = 0; i < terrainBuffer.Length; i++)
+            {
+                terrainLayers[i] = terrainBuffer[i];
+            }
+
+            float voxelSize = chunkData.ValueRO.Size / chunkSize;
+
             var job = new MarchingCubesJob
             {
                 NoiseData = noiseData,
@@ -88,11 +88,18 @@ public partial struct MeshGenerationSystem : ISystem
                 TriTable = triTable,
                 ChunkSize = chunkSize,
                 SampleSize = sampleSize,
-                Threshold = 0.5f,
-                VoxelSize = 1.0f,
+                Threshold = 0f,
+                VoxelSize = voxelSize,
+                ChunkMin = chunkData.ValueRO.Min,
+
+                PlanetCenter = planetData.ValueRO.Center,
+                PlanetRadius = planetData.ValueRO.Radius,
+                TerrainLayers = terrainLayers,
+
                 Vertices = vertices,
                 Normals = normals,
-                Indices = indices
+                Indices = indices,
+                Colors = colors
             };
 
             var jobHandle = job.Schedule(state.Dependency);
@@ -104,14 +111,14 @@ public partial struct MeshGenerationSystem : ISystem
                 NoiseData = noiseData,
                 Vertices = vertices,
                 Normals = normals,
-                Indices = indices
+                Indices = indices,
+                Colors = colors,
+                TerrainLayers = terrainLayers
             });
 
-            // Disable flag to prevent re-processing
             ecb.SetComponentEnabled<MeshGenerationRequest>(entity, false);
         }
 
-        // Update dependencies and cache results
         if (newJobs.Length > 0)
         {
             var jobHandles = new NativeArray<JobHandle>(newJobs.Length, Allocator.Temp);
@@ -132,9 +139,6 @@ public partial struct MeshGenerationSystem : ISystem
     }
 }
 
-/// <summary>
-/// Stores job handle and output data for mesh generation
-/// </summary>
 public struct MeshJobResult
 {
     public JobHandle JobHandle;
@@ -143,4 +147,6 @@ public struct MeshJobResult
     public NativeList<float3> Vertices;
     public NativeList<float3> Normals;
     public NativeList<int> Indices;
+    public NativeList<float4> Colors;
+    public NativeArray<TerrainLayerBuffer> TerrainLayers;
 }
