@@ -98,17 +98,17 @@ partial struct GoInGameServerSystem : ISystem
     /// </summary>
     private float3 CalculateSafeSpawnPosition(ref SystemState state, float3 desiredPosition)
     {
-        const float DEFAULT_SPAWN_HEIGHT = 50f; // 기본 스폰 높이
-        const float ESTIMATED_PLANET_RADIUS = 100f; // 예상 행성 반지름
-        const float SURFACE_OFFSET = 2f; // 지면 위 여유 높이
-        const float MAX_RAYCAST_DISTANCE = 500f; // Raycast 최대 거리
+        const float SPAWN_HEIGHT_OFFSET = 1f; // 최대 높이 위 1만큼 오프셋
 
-        // 행성 찾기
-        PlanetComponent planet = default;
+        // PlanetTag를 가진 엔티티에서 PlanetData와 NoiseSettings 찾기
+        PlanetData planetData = default;
+        NoiseSettings noiseSettings = default;
         bool foundPlanet = false;
-        foreach (var p in SystemAPI.Query<RefRO<PlanetComponent>>())
+
+        foreach (var (pd, ns) in SystemAPI.Query<RefRO<PlanetData>, RefRO<NoiseSettings>>())
         {
-            planet = p.ValueRO;
+            planetData = pd.ValueRO;
+            noiseSettings = ns.ValueRO;
             foundPlanet = true;
             break;
         }
@@ -116,55 +116,24 @@ partial struct GoInGameServerSystem : ISystem
         if (!foundPlanet)
         {
             Debug.LogWarning("[GoInGameServer] Planet not found! Using default spawn position.");
-            return new float3(0, DEFAULT_SPAWN_HEIGHT, 0);
+            return new float3(0, 88f, 0);
         }
 
-        // Physics World 가져오기
-        if (!SystemAPI.TryGetSingleton<PhysicsWorldSingleton>(out var physicsWorldSingleton))
-        {
-            Debug.LogWarning("[GoInGameServer] PhysicsWorld not available! Using estimated spawn height.");
-            float3 spawnDir = math.normalizesafe(desiredPosition - planet.Center);
-            if (math.lengthsq(spawnDir) < 0.01f)
-            {
-                spawnDir = new float3(0, 1, 0); // 위쪽 방향
-            }
-            return planet.Center + spawnDir * (ESTIMATED_PLANET_RADIUS + DEFAULT_SPAWN_HEIGHT);
-        }
-
-        var physicsWorld = physicsWorldSingleton.PhysicsWorld;
+        // 최대 높이 계산: Radius + HeightMultiplier + 1
+        float maxHeight = planetData.Radius + noiseSettings.HeightMultiplier + SPAWN_HEIGHT_OFFSET;
 
         // 스폰 방향 결정 (기본: 위쪽)
-        float3 spawnDirection = math.normalizesafe(desiredPosition - planet.Center);
+        float3 spawnDirection = math.normalizesafe(desiredPosition - planetData.Center);
         if (math.lengthsq(spawnDirection) < 0.01f)
         {
             spawnDirection = new float3(0, 1, 0);
         }
 
-        // 행성 중심에서 바깥쪽으로 Raycast (지면 찾기)
-        float3 rayStart = planet.Center;
-        float3 rayEnd = planet.Center + spawnDirection * MAX_RAYCAST_DISTANCE;
+        // 최대 높이 위치에 스폰
+        float3 spawnPosition = planetData.Center + spawnDirection * maxHeight;
 
-        var rayInput = new RaycastInput
-        {
-            Start = rayStart,
-            End = rayEnd,
-            Filter = CollisionFilter.Default
-        };
+        Debug.Log($"[GoInGameServer] Spawn position: {spawnPosition}, max height: {maxHeight} (Radius: {planetData.Radius}, HeightMultiplier: {noiseSettings.HeightMultiplier})");
 
-        // Raycast로 지면 찾기
-        if (physicsWorld.CastRay(rayInput, out var hit))
-        {
-            // 지면을 찾았으면 표면 위에 스폰
-            float3 safePosition = hit.Position + hit.SurfaceNormal * SURFACE_OFFSET;
-            Debug.Log($"[GoInGameServer] Spawn position found via raycast: {safePosition}, distance from center: {math.length(safePosition - planet.Center)}");
-            return safePosition;
-        }
-        else
-        {
-            // 지면을 못 찾았으면 예상 반지름 + 기본 높이
-            float3 fallbackPosition = planet.Center + spawnDirection * (ESTIMATED_PLANET_RADIUS + DEFAULT_SPAWN_HEIGHT);
-            Debug.LogWarning($"[GoInGameServer] Raycast failed! Using fallback position: {fallbackPosition}");
-            return fallbackPosition;
-        }
+        return spawnPosition;
     }
 }

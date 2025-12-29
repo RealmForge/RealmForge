@@ -31,22 +31,29 @@ public class PlanetEntitySpawner : MonoBehaviour
 
     void SpawnPlanetEntity()
     {
-        World world = null;
-        foreach (var w in World.All)
+        // Server와 Client World 모두에 행성 엔티티 생성
+        foreach (var world in World.All)
         {
-            if (w.Name.Contains("Client"))
+            // Server 또는 Client World에만 생성
+            if (world.Name.Contains("Server") || world.Name.Contains("Client"))
             {
-                world = w;
-                break;
+                CreatePlanetInWorld(world);
             }
         }
 
-        if (world == null)
-            world = World.DefaultGameObjectInjectionWorld;
+        // Fallback: Default World에도 생성
+        if (World.DefaultGameObjectInjectionWorld != null)
+        {
+            CreatePlanetInWorld(World.DefaultGameObjectInjectionWorld);
+        }
 
-        if (world == null) return;
+        _spawned = true;
+    }
 
-        _targetWorld = world;
+    private void CreatePlanetInWorld(World world)
+    {
+        if (world == null || !world.IsCreated) return;
+
         var em = world.EntityManager;
 
         var archetype = em.CreateArchetype(
@@ -56,20 +63,20 @@ public class PlanetEntitySpawner : MonoBehaviour
             typeof(NoiseSettings)
         );
 
-        _planetEntity = em.CreateEntity(archetype);
+        var planetEntity = em.CreateEntity(archetype);
 
-        em.SetComponentData(_planetEntity, new PlanetData
+        em.SetComponentData(planetEntity, new PlanetData
         {
             Center = settings.center,
             Radius = settings.radius
         });
 
-        em.SetComponentData(_planetEntity, new PlanetChunkSettings
+        em.SetComponentData(planetEntity, new PlanetChunkSettings
         {
             ChunkSize = settings.chunkSize
         });
 
-        em.SetComponentData(_planetEntity, new NoiseSettings
+        em.SetComponentData(planetEntity, new NoiseSettings
         {
             Scale = settings.noiseScale,
             Octaves = settings.octaves,
@@ -86,7 +93,7 @@ public class PlanetEntitySpawner : MonoBehaviour
             CaveMaxDepth = settings.caveMaxDepth
         });
 
-        var terrainBuffer = em.AddBuffer<TerrainLayerBuffer>(_planetEntity);
+        var terrainBuffer = em.AddBuffer<TerrainLayerBuffer>(planetEntity);
         foreach (var layer in settings.terrainLayers)
         {
             terrainBuffer.Add(new TerrainLayerBuffer
@@ -96,8 +103,14 @@ public class PlanetEntitySpawner : MonoBehaviour
             });
         }
 
-        _spawned = true;
-        Debug.Log($"[PlanetEntitySpawner] Planet entity created. Center={settings.center}, Radius={settings.radius}");
+        Debug.Log($"[PlanetEntitySpawner] Planet entity created in world '{world.Name}'. Center={settings.center}, Radius={settings.radius}");
+
+        // 첫 번째로 생성된 엔티티를 추적
+        if (_planetEntity == Entity.Null)
+        {
+            _planetEntity = planetEntity;
+            _targetWorld = world;
+        }
     }
 
     void OnDestroy()
