@@ -59,7 +59,14 @@ public class OctreeManager : MonoBehaviour
         if (maxLodDepth > maxDepth) maxLodDepth = maxDepth;
     }
 
-    void Start()
+    public void RegisterTarget(Transform target)
+    {
+        this.target = target;
+        
+        Initiallize();
+    }
+
+    void Initiallize()
     {
         int capacity = 500000;
         _pool = new OctreeNodePool(capacity, Allocator.Persistent);

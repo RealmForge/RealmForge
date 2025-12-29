@@ -20,35 +20,35 @@ public partial class OctreeTargetSyncSystem : SystemBase
     
     protected override void OnUpdate()
     {
-    // OctreeManager가 없으면 리턴
-    if (OctreeManager.Instance == null)
-        return;
+        // OctreeManager가 없으면 리턴
+        if (OctreeManager.Instance == null)
+            return;
 
-    // Target GameObject 생성 (한 번만)
-    if (!_initialized)
-    {
-        _targetObject = new GameObject("OctreeTarget");
-        _targetTransform = _targetObject.transform;
-        OctreeManager.Instance.target = _targetTransform;
-        _initialized = true;
-        Debug.Log("[OctreeTargetSync] Target GameObject created and assigned to OctreeManager");
+        // Target GameObject 생성 (한 번만)
+        if (!_initialized)
+        {
+            _targetObject = new GameObject("OctreeTarget");
+            _targetTransform = _targetObject.transform;
+            OctreeManager.Instance.RegisterTarget(_targetTransform);
+            _initialized = true;
+            Debug.Log("[OctreeTargetSync] Target GameObject created and assigned to OctreeManager");
+        }
+
+        // SessionClientWorld에서 로컬 플레이어 찾기
+        foreach (var transform in SystemAPI.Query<RefRO<LocalTransform>>()
+                     .WithAll<GhostOwnerIsLocal, PlayerComponent>())
+        {
+            // 플레이어 위치를 Target Transform에 동기화
+            _targetTransform.position = transform.ValueRO.Position;
+            return; // 첫 번째 로컬 플레이어만 사용
+        }
     }
 
-    // SessionClientWorld에서 로컬 플레이어 찾기
-    foreach (var transform in SystemAPI.Query<RefRO<LocalTransform>>()
-                 .WithAll<GhostOwnerIsLocal, PlayerComponent>())
+    protected override void OnDestroy()
     {
-        // 플레이어 위치를 Target Transform에 동기화
-        _targetTransform.position = transform.ValueRO.Position;
-        return; // 첫 번째 로컬 플레이어만 사용
+        if (_targetObject != null)
+        {
+            Object.Destroy(_targetObject);
+        }
     }
-}
-
-protected override void OnDestroy()
-{
-    if (_targetObject != null)
-    {
-        Object.Destroy(_targetObject);
-    }
-}
 }
