@@ -44,9 +44,10 @@ public struct OctreeNode
         max = Center + new float3(halfSize);
     }
     
+    // ★ in 키워드로 참조 전달
     [BurstCompile]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static float DistanceToPoint(float3 center, float size, float3 point)
+    public static float DistanceToPoint(in float3 center, float size, in float3 point)
     {
         float halfSize = size * 0.5f;
         float3 min = center - new float3(halfSize);
@@ -69,7 +70,7 @@ public struct OctreeNode
     
     [BurstCompile]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool ContainsPoint(float3 center, float size, float3 point)
+    public static bool ContainsPoint(in float3 center, float size, in float3 point)
     {
         float halfSize = size * 0.5f;
         float3 min = center - new float3(halfSize);
@@ -82,7 +83,7 @@ public struct OctreeNode
     
     [BurstCompile]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static int GetOctant(float3 nodeCenter, float3 position)
+    public static int GetOctant(in float3 nodeCenter, in float3 position)
     {
         int octant = 0;
         if (position.x >= nodeCenter.x) octant |= 1;
@@ -265,9 +266,6 @@ public struct OctreeNodePool : IDisposable
 
 // ============ Jobs ============
 
-/// <summary>
-/// 각 노드의 목표 깊이 계산 (병렬)
-/// </summary>
 [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
 public struct CalculateTargetDepthJob : IJobParallelFor
 {
@@ -290,7 +288,10 @@ public struct CalculateTargetDepthJob : IJobParallelFor
         }
         
         var node = Nodes[index];
-        float distance = OctreeNode.DistanceToPoint(node.Center, node.Size, TargetPos);
+        float3 center = node.Center;
+        float3 target = TargetPos;
+        
+        float distance = OctreeNode.DistanceToPoint(in center, node.Size, in target);
         
         int targetDepth;
         if (distance <= 0)
@@ -302,7 +303,6 @@ public struct CalculateTargetDepthJob : IJobParallelFor
             int steps = (int)(distance / LodStepDistance);
             targetDepth = math.clamp(MaxLodDepth - steps, MinLodDepth, MaxLodDepth);
             
-            // 경계 근처 체크
             float threshold = node.Size * BoundaryThreshold;
             if (distance < threshold)
             {
@@ -314,9 +314,6 @@ public struct CalculateTargetDepthJob : IJobParallelFor
     }
 }
 
-/// <summary>
-/// 리프 노드 수집 (병렬)
-/// </summary>
 [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
 public struct CollectLeafNodesJob : IJobParallelFor
 {
@@ -337,9 +334,6 @@ public struct CollectLeafNodesJob : IJobParallelFor
     }
 }
 
-/// <summary>
-/// 노드 키 생성 (병렬)
-/// </summary>
 [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
 public struct GenerateNodeKeysJob : IJobParallelFor
 {
@@ -358,17 +352,19 @@ public struct GenerateNodeKeysJob : IJobParallelFor
         }
         
         var node = Nodes[index];
-        int posHash = HashPosition(node.Center);
+        float3 pos = node.Center;
+        int posHash = HashPositionInline(pos.x, pos.y, pos.z);
         long key = ((long)node.Depth << 60) | ((long)(index & 0xFFFFF) << 40) | ((long)posHash & 0xFFFFFFFFFF);
         NodeKeys[index] = key;
     }
     
-    [BurstCompile]
-    private static int HashPosition(float3 pos)
+    // ★ 인라인으로 직접 계산 (float3 전달 안 함)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int HashPositionInline(float x, float y, float z)
     {
-        int x = (int)(pos.x * 100);
-        int y = (int)(pos.y * 100);
-        int z = (int)(pos.z * 100);
-        return x ^ (y << 10) ^ (z << 20);
+        int ix = (int)(x * 100);
+        int iy = (int)(y * 100);
+        int iz = (int)(z * 100);
+        return ix ^ (iy << 10) ^ (iz << 20);
     }
 }
