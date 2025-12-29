@@ -18,7 +18,6 @@ public class PlanetEntitySpawner : MonoBehaviour
     private Entity _planetEntity;
     private World _targetWorld;
     private bool _spawned;
-    private System.Collections.Generic.HashSet<World> _createdWorlds = new System.Collections.Generic.HashSet<World>();
 
     void Start()
     {
@@ -35,24 +34,17 @@ public class PlanetEntitySpawner : MonoBehaviour
         // Server와 Client World 모두에 행성 엔티티 생성
         foreach (var world in World.All)
         {
-            // 이미 생성한 World는 스킵
-            if (_createdWorlds.Contains(world))
-                continue;
-
-            // Server 또는 Client World에만 생성 (정확한 이름 매칭)
-            if (world.Name == "ServerWorld" || world.Name == "SessionClientWorld" || world.Name == "ClientWorld")
+            // Server 또는 Client World에만 생성
+            if (world.Name.Contains("Server") || world.Name.Contains("Client"))
             {
                 CreatePlanetInWorld(world);
-                _createdWorlds.Add(world);
             }
         }
 
-        // Fallback: Default World에도 생성 (중복 방지)
-        if (World.DefaultGameObjectInjectionWorld != null &&
-            !_createdWorlds.Contains(World.DefaultGameObjectInjectionWorld))
+        // Fallback: Default World에도 생성
+        if (World.DefaultGameObjectInjectionWorld != null)
         {
             CreatePlanetInWorld(World.DefaultGameObjectInjectionWorld);
-            _createdWorlds.Add(World.DefaultGameObjectInjectionWorld);
         }
 
         _spawned = true;
@@ -63,16 +55,6 @@ public class PlanetEntitySpawner : MonoBehaviour
         if (world == null || !world.IsCreated) return;
 
         var em = world.EntityManager;
-
-        // 이미 PlanetTag를 가진 엔티티가 있는지 확인
-        var query = em.CreateEntityQuery(typeof(PlanetTag));
-        if (query.CalculateEntityCount() > 0)
-        {
-            Debug.Log($"[PlanetEntitySpawner] Planet already exists in world '{world.Name}', skipping creation.");
-            query.Dispose();
-            return;
-        }
-        query.Dispose();
 
         var archetype = em.CreateArchetype(
             typeof(PlanetTag),

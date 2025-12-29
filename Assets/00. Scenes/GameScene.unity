@@ -418,7 +418,7 @@ GameObject:
   - component: {fileID: 1176580007}
   - component: {fileID: 1176580006}
   m_Layer: 0
-  m_Name: OctreeManager
+  m_Name: OctreeTest
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
