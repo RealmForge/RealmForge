@@ -318,6 +318,7 @@ public class OctreeManager : MonoBehaviour
     
     void OnGUI()
     {
+        if (!_pool.IsCreated) return;
         GUILayout.BeginArea(new Rect(10, 10, 300, 150));
         GUILayout.Label($"Player Depth: {PlayerNodeDepth}");
         GUILayout.Label($"Subdivisions: {LastSubdivisions}");

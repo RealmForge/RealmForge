@@ -121,6 +121,8 @@ public struct OctreeNodePool : IDisposable
     
     public readonly int Capacity;
     
+    public bool IsCreated => FreeCountArray.IsCreated;
+    
     public int UsedCount => Capacity - FreeCountArray[0];
     public int FreeCount => FreeCountArray[0];
     

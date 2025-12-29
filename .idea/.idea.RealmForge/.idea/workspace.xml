@@ -68,7 +68,7 @@
       <method v="2" />
     </configuration>
     <configuration name="Start Unity" type="RunUnityExe" factoryName="Unity Executable">
-      <option name="EXE_PATH" value="C:\Program Files\Unity\Hub\Editor\6000.0.60f1-x86_64\Editor\Unity.exe" />
+      <option name="EXE_PATH" value="K:\unity\6000.0.60f1\Editor\Unity.exe" />
       <option name="PROGRAM_PARAMETERS" value="-projectPath &quot;C:\Users\sin yeong\Downloads\temp\RealmForge&quot; -debugCodeOptimization" />
       <option name="WORKING_DIRECTORY" value="C:\Users\sin yeong\Downloads\temp\RealmForge" />
       <option name="PASS_PARENT_ENVS" value="1" />
@@ -78,7 +78,7 @@
       <method v="2" />
     </configuration>
     <configuration name="Unit Tests (batch mode)" type="RunUnityExe" factoryName="Unity Executable">
-      <option name="EXE_PATH" value="C:\Program Files\Unity\Hub\Editor\6000.0.60f1-x86_64\Editor\Unity.exe" />
+      <option name="EXE_PATH" value="K:\unity\6000.0.60f1\Editor\Unity.exe" />
       <option name="PROGRAM_PARAMETERS" value="-runTests -batchmode -projectPath &quot;C:\Users\sin yeong\Downloads\temp\RealmForge&quot; -testResults Logs/results.xml -logFile Logs/Editor.log -testPlatform EditMode -debugCodeOptimization" />
       <option name="WORKING_DIRECTORY" value="C:\Users\sin yeong\Downloads\temp\RealmForge" />
       <option name="PASS_PARENT_ENVS" value="1" />
