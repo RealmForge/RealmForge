@@ -31,20 +31,25 @@ public class PlanetEntitySpawner : MonoBehaviour
 
     void SpawnPlanetEntity()
     {
-        // Server와 Client World 모두에 행성 엔티티 생성
+        // SessionClientWorld에만 행성 엔티티 생성
+        World sessionClientWorld = null;
         foreach (var world in World.All)
         {
-            // Server 또는 Client World에만 생성
-            if (world.Name.Contains("Server") || world.Name.Contains("Client"))
+            if (world.Name == "SessionClientWorld" && world.IsCreated)
             {
-                CreatePlanetInWorld(world);
+                sessionClientWorld = world;
+                break;
             }
         }
 
-        // Fallback: Default World에도 생성
-        if (World.DefaultGameObjectInjectionWorld != null)
+        if (sessionClientWorld != null)
         {
-            CreatePlanetInWorld(World.DefaultGameObjectInjectionWorld);
+            CreatePlanetInWorld(sessionClientWorld);
+            Debug.Log("[PlanetEntitySpawner] Planet entity created in SessionClientWorld");
+        }
+        else
+        {
+            Debug.LogWarning("[PlanetEntitySpawner] SessionClientWorld not found! Planet will not be created.");
         }
 
         _spawned = true;

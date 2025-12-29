@@ -39,13 +39,20 @@ public partial class OctreeChunkSpawnerSystem : SystemBase
 
     protected override void OnUpdate()
     {
-        if (!World.Name.Contains("Client")) return;
+        // SessionClientWorld에서만 실행
+        if (World.Name != "SessionClientWorld") return;
         if (OctreeManager.Instance == null) return;
 
         if (!_initialized)
         {
             var query = GetEntityQuery(typeof(PlanetTag));
             if (query.CalculateEntityCount() == 0) return;
+
+            // 현재 월드에 PlanetTag가 여러 개 있을 경우 첫 번째 것 사용
+            if (query.CalculateEntityCount() > 1)
+            {
+                Debug.LogWarning($"[OctreeChunkSpawner] Multiple PlanetTag entities found in {World.Name}, using first one");
+            }
 
             _planetEntity = query.GetSingletonEntity();
             _cachedPlanetData = EntityManager.GetComponentData<PlanetData>(_planetEntity);
