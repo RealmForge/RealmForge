@@ -68,14 +68,9 @@ public class OctreeManager : MonoBehaviour
         _mergeWorkStack = new NativeArray<int>(4096, Allocator.Persistent);
         _nodesToSubdivide = new NativeList<int>(1024, Allocator.Persistent);
         _nodesToMerge = new NativeList<int>(1024, Allocator.Persistent);
-        
-        if (target == null)
-        {
-            Debug.LogError("OctreeManager: Target을 설정해주세요!");
-            return;
-        }
-        
-        BuildOctree(target.position);
+
+        // Target은 OctreeTargetSyncSystem에서 자동으로 설정됨
+        // Target이 없으면 Update에서 기다림
     }
     
     void BuildOctree(Vector3 centerPosition)
@@ -99,10 +94,19 @@ public class OctreeManager : MonoBehaviour
 
     void Update()
     {
-        if (target == null || _rootIndex == -1) return;
-        
+        // Target이 없으면 대기
+        if (target == null) return;
+
+        // Target이 설정되었는데 옥트리가 아직 빌드되지 않았으면 빌드
+        if (_rootIndex == -1)
+        {
+            BuildOctree(target.position);
+            Debug.Log("[OctreeManager] Octree built with target position: " + target.position);
+            return;
+        }
+
         float3 targetPos = new float3(target.position.x, target.position.y, target.position.z);
-        
+
         if (!IsInsideRoot(target.position))
         {
             Debug.Log("루트 범위 벗어남 → 재구성");
@@ -110,7 +114,7 @@ public class OctreeManager : MonoBehaviour
             BuildOctree(target.position);
             return;
         }
-        
+
         UpdateWithJobs(targetPos);
     }
     
