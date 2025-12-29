@@ -240,7 +240,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2c06afebb60202849825c2ff1ae58c9d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gravity: 20
+  gravity: 9.8
 --- !u!4 &2114472465
 Transform:
   m_ObjectHideFlags: 0

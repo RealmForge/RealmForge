@@ -179,6 +179,7 @@ public partial class MeshApplySystem : SystemBase
         if (!EntityManager.HasComponent<PhysicsCollider>(entity))
         {
             EntityManager.AddComponentData(entity, new PhysicsCollider { Value = collider });
+            EntityManager.AddSharedComponent(entity, new PhysicsWorldIndex());
         }
         else
         {
