@@ -3,7 +3,7 @@
 
 Unity의 차세대 기술 스택인 **DOTS**와 **NFE**를 활용하여, 복잡한 저수준 구조를 추상화하고 고성능 멀티플레이어 절차적 지형 생성을 지원하는 통합 API 솔루션입니다. 
 
-<img width="425" height="252" alt="Image" src="https://github.com/user-attachments/assets/7402c0df-5438-4c4c-a0cd-4a83214d5d74" /> <img width="510" height="252" alt="Image" src="https://github.com/user-attachments/assets/d65769da-5705-4573-9f3d-4ccc5dd19413" />
+<img width="385" height="252" alt="Image" src="https://github.com/user-attachments/assets/7402c0df-5438-4c4c-a0cd-4a83214d5d74" /> <img width="470" height="252" alt="Image" src="https://github.com/user-attachments/assets/d65769da-5705-4573-9f3d-4ccc5dd19413" />
 ---
 
 ## 🎯 1. 프로젝트 개요
@@ -38,7 +38,7 @@ Unity의 차세대 기술 스택인 **DOTS**와 **NFE**를 활용하여, 복잡�
 * **데이터 시각화**: Marching Cubes 및 Job System을 사용하여 최적화된 병렬 메시 렌더링.
 * **인게임 모듈**: 플레이어 조작, 구면 중력, 물리 상호작용 처리.
 
-<img width="480" height="270" alt="Image" src="https://github.com/user-attachments/assets/495b8ab9-3c1f-4b81-afb0-6d85826cf01f" /> <img width="480" height="280" alt="Image" src="https://github.com/user-attachments/assets/148b2a10-cd32-4bee-ba99-5437a216d68a" />
+<img width="440" height="270" alt="Image" src="https://github.com/user-attachments/assets/495b8ab9-3c1f-4b81-afb0-6d85826cf01f" /> <img width="440" height="280" alt="Image" src="https://github.com/user-attachments/assets/148b2a10-cd32-4bee-ba99-5437a216d68a" />
 
 ---
 
