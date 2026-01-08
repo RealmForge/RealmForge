@@ -6,7 +6,43 @@
   <component name="ChangeListManager">
     <list default="true" id="0b82a9c4-9099-46bc-8b08-31f2081a5886" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.RealmForge/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.RealmForge/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/02. Prefab/InGame/Player.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/02. Prefab/InGame/Player.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/00. Scenes/GameScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/00. Scenes/GameScene.unity" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/00. Scenes/Lobby.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/00. Scenes/Lobby.unity" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/CameraFollowAuthoring.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/CameraFollowAuthoring.cs.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/CameraFollowSystem.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/CameraFollowSystem.cs.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/EntitiesReferenceAuthoring.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/EntitiesReferenceAuthoring.cs.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/GravitySystem.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/GravitySystem.cs.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/PlanetGravityAuthoring.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/PlanetGravityAuthoring.cs.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/PlayerAuthoring.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/PlayerAuthoring.cs.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/PlayerEyeAuthoring.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/PlayerEyeAuthoring.cs.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/PlayerInputAuthoring.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/PlayerInputAuthoring.cs.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/PlayerInputSystem.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/PlayerInputSystem.cs.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/PlayerMovementSystem.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/PlayerMovementSystem.cs.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/PlayerOrientationSystem.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/PlayerOrientationSystem.cs.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/PlayerRotationSystem.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/01. Scripts/Game/PlayerRotationSystem.cs.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Resources/PerformanceTestRunInfo.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Resources/PerformanceTestRunInfo.json.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Resources/PerformanceTestRunSettings.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Resources/PerformanceTestRunSettings.json.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Settings/PC_RPAsset.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Settings/PC_RPAsset.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Settings/UniversalRenderPipelineGlobalSettings.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Settings/UniversalRenderPipelineGlobalSettings.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ProjectSettings/GraphicsSettings.asset" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/GraphicsSettings.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ProjectSettings/MultiplayerManager.asset" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/MultiplayerManager.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ProjectSettings/NetCodeClientAndServerSettings.asset" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/NetCodeClientAndServerSettings.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ProjectSettings/NetCodeClientSettings.asset" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/NetCodeClientSettings.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ProjectSettings/Packages/com.unity.dedicated-server/MultiplayerRolesSettings.asset" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/Packages/com.unity.dedicated-server/MultiplayerRolesSettings.asset" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -47,14 +83,28 @@
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
 }</component>
-  <component name="RunManager" selected="Attach to Unity Editor.Unity 에디터에 연결">
+  <component name="RunManager" selected="Unity 에디터에 연결.Attach to Unity Editor">
     <configuration name="유닛 테스트(배치 모드)" type="RunUnityExe" factoryName="Unity Executable">
       <option name="EXE_PATH" value="C:\Program Files\Unity\Hub\Editor\6000.0.60f1\Editor\Unity.exe" />
       <option name="PROGRAM_PARAMETERS" value="-runTests -batchmode -projectPath E:\RealmForge -testResults Logs/results.xml -logFile Logs/Editor.log -testPlatform EditMode -debugCodeOptimization" />
       <option name="WORKING_DIRECTORY" value="E:\RealmForge" />
       <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
       <option name="ENV_FILE_PATHS" value="" />
       <option name="REDIRECT_INPUT_PATH" value="" />
+      <option name="PTY_MODE" value="Auto" />
+      <option name="MIXED_MODE_DEBUG" value="0" />
+      <method v="2" />
+    </configuration>
+    <configuration name="독립실행형 플레이어" type="RunUnityExe" factoryName="Unity Executable">
+      <option name="EXE_PATH" value="$PROJECT_DIR$/../RealmBuilder Build\RealmForge.exe" />
+      <option name="PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="E:\RealmBuilder Build" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="ENV_FILE_PATHS" value="" />
+      <option name="REDIRECT_INPUT_PATH" value="" />
+      <option name="PTY_MODE" value="Auto" />
       <option name="MIXED_MODE_DEBUG" value="0" />
       <method v="2" />
     </configuration>
@@ -63,8 +113,10 @@
       <option name="PROGRAM_PARAMETERS" value="" />
       <option name="WORKING_DIRECTORY" value="C:\Build" />
       <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
       <option name="ENV_FILE_PATHS" value="" />
       <option name="REDIRECT_INPUT_PATH" value="" />
+      <option name="PTY_MODE" value="Auto" />
       <option name="MIXED_MODE_DEBUG" value="0" />
       <method v="2" />
     </configuration>
@@ -73,8 +125,10 @@
       <option name="PROGRAM_PARAMETERS" value="-projectPath &quot;C:\Users\sin yeong\Downloads\temp\RealmForge&quot; -debugCodeOptimization" />
       <option name="WORKING_DIRECTORY" value="C:\Users\sin yeong\Downloads\temp\RealmForge" />
       <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
       <option name="ENV_FILE_PATHS" value="" />
       <option name="REDIRECT_INPUT_PATH" value="" />
+      <option name="PTY_MODE" value="Auto" />
       <option name="MIXED_MODE_DEBUG" value="0" />
       <method v="2" />
     </configuration>
@@ -83,8 +137,10 @@
       <option name="PROGRAM_PARAMETERS" value="-runTests -batchmode -projectPath &quot;C:\Users\sin yeong\Downloads\temp\RealmForge&quot; -testResults Logs/results.xml -logFile Logs/Editor.log -testPlatform EditMode -debugCodeOptimization" />
       <option name="WORKING_DIRECTORY" value="C:\Users\sin yeong\Downloads\temp\RealmForge" />
       <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
       <option name="ENV_FILE_PATHS" value="" />
       <option name="REDIRECT_INPUT_PATH" value="" />
+      <option name="PTY_MODE" value="Auto" />
       <option name="MIXED_MODE_DEBUG" value="0" />
       <method v="2" />
     </configuration>
@@ -93,8 +149,10 @@
       <option name="PROGRAM_PARAMETERS" value="-projectPath E:\RealmForge -debugCodeOptimization" />
       <option name="WORKING_DIRECTORY" value="E:\RealmForge" />
       <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
       <option name="ENV_FILE_PATHS" value="" />
       <option name="REDIRECT_INPUT_PATH" value="" />
+      <option name="PTY_MODE" value="Auto" />
       <option name="MIXED_MODE_DEBUG" value="0" />
       <method v="2" />
     </configuration>
